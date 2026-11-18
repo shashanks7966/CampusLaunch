@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CampusLaunch | Find your next big idea</title>
+<style>
+:root{--bg:#0b1120;--card:#131c31;--line:#243049;--text:#e6ebf5;--muted:#93a0b8;--accent:#6c8cff;--danger:#ff6b6b;--ok:#3ecf8e}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--text)}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+.brand{font-weight:700;font-size:20px}.brand span{color:var(--accent)}
+nav{display:flex;gap:6px;flex-wrap:wrap}
+nav button{background:none;border:0;color:var(--muted);font:inherit;padding:6px 12px;border-radius:8px;cursor:pointer}
+nav button.on{background:var(--card);color:var(--text)}
+main{max-width:1050px;margin:0 auto;padding:24px 16px}
+h1{font-size:28px;margin:0 0 6px}h2{font-size:19px;margin:26px 0 10px}.muted{color:var(--muted)}
+.bar{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.bar input{flex:2;min-width:180px}.bar select{flex:1;min-width:130px}
+input,textarea,select{width:100%;padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:8px;color:var(--text);font:inherit}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--accent);border-color:transparent}
+input[type=checkbox]{width:auto}
+label{display:block;margin:12px 0 4px;font-size:14px;color:var(--muted)}
+.btn{padding:9px 15px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}.btn.danger{background:var(--danger)}.btn.ok{background:var(--ok);color:#06291a}.btn.sm{padding:4px 10px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.card[data-act]{cursor:pointer}.card[data-act]:hover{border-color:var(--accent)}
+.card h3{margin:0;font-size:17px}.card p{margin:0;color:var(--muted);font-size:15px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.top{display:flex;justify-content:space-between;gap:8px;align-items:start}
+.badge{font-size:12px;padding:2px 9px;border-radius:99px;border:1px solid var(--line);white-space:nowrap;color:var(--muted)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chip{font-size:12px;padding:2px 10px;border-radius:99px;background:#1d2a47;color:#b8c7ff}
+.meta{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:auto;gap:8px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:16px 0}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}.stat b{font-size:26px;display:block}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+ul.list{list-style:none;margin:0;padding:0}
+ul.list li{padding:10px 0;border-bottom:1px solid var(--line);font-size:15px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+ul.list li[data-act]{cursor:pointer}.unread{border-left:3px solid var(--accent);padding-left:8px}
+.acts{display:flex;gap:6px}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}
+.scroll{overflow-x:auto}
+dialog{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:14px;width:94%;max-width:560px;padding:22px;max-height:92vh}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+.tabs{display:flex;gap:8px;margin-bottom:6px}.tabs .btn{flex:1}
+.row{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1f6f43;color:#fff;padding:10px 18px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%;z-index:20}
+#toast.show{opacity:1}#toast.bad{background:#a83232}
+@media(max-width:560px){.two{grid-template-columns:1fr}h1{font-size:23px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Campus<span>Launch</span></div>
+  <nav id="nav"></nav>
+  <div id="user"></div>
+</header>
+<main>
+  <section id="discover">
+    <h1>Turn coursework into something real.</h1>
+    <p class="muted">Find your people, shape a bold idea, and ship projects that make campus better.</p>
+    <div class="bar">
+      <input id="q" placeholder="Search by title, technology or skill…">
+      <select id="cat"></select><select id="st"></select>
+      <button class="btn" id="newBtn">+ New project</button>
+    </div>
+    <div id="list" class="grid"></div>
+  </section>
+  <section id="view" hidden></section>
+</main>
+
+<dialog id="authDlg"><form id="authForm"></form></dialog>
+<dialog id="projDlg"><form id="projForm"></form></dialog>
+<dialog id="detDlg"><div id="detBody"></div></dialog>
+<div id="toast"></div>
+
+<script>
+// Address of your backend. Change this after you deploy the backend online.
+const API = "http://127.0.0.1:8000";
+const CATS = ["Web","Mobile","AI/ML","IoT","Hardware","Other"], STS = ["Planning","In Progress","Completed"];
+let token = null, me = null, view = "discover", authMode = "login", editId = null, openId = null;
+try { token = localStorage.getItem("cl_token") || sessionStorage.getItem("cl_token"); } catch (e) {}
+
+const $ = s => document.querySelector(s);
+const esc = t => String(t ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const opt = (a, sel) => a.map(x => `<option ${x === sel ? "selected" : ""}>${x}</option>`).join("");
+const chips = s => (s || "").split(",").map(x => x.trim()).filter(Boolean).map(x => `<span class="chip">${esc(x)}</span>`).join("");
+const date = s => esc((s || "").slice(0, 16));
+
+function toast(m, bad) {
+  const t = $("#toast"); t.textContent = m; t.className = "show" + (bad ? " bad" : "");
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.className = "", 3500);
+}
+async function api(path, method = "GET", body) {
+  const h = {}; if (body) h["Content-Type"] = "application/json"; if (token) h.Authorization = "Bearer " + token;
+  let r;
+  try { r = await fetch(API + path, { method, headers: h, body: body ? JSON.stringify(body) : undefined }); }
+  catch (e) { throw new Error("Can’t reach the backend. Is uvicorn running?"); }
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    let m = d.detail; if (Array.isArray(m)) m = m.map(x => (x.loc || []).slice(-1) + ": " + x.msg).join("; ");
+    throw new Error(m || "Something went wrong");
+  }
+  return d;
+}
+function saveToken(t, remember) {
+  token = t;
+  try { localStorage.removeItem("cl_token"); sessionStorage.removeItem("cl_token");
+    if (t) (remember ? localStorage : sessionStorage).setItem("cl_token", t); } catch (e) {}
+}
+
+// ----- Header / navigation -----
+async function loadMe() {
+  me = null;
+  if (token) { try { me = await api("/me"); } catch (e) { saveToken(null); } }
+  const tabs = [["discover", "Discover"]];
+  if (me) tabs.push(["dashboard", "Dashboard" + (me.unread ? ` (${me.unread})` : "")], ["profile", "Profile"]);
+  if (me && me.role === "admin") tabs.push(["admin", "Admin"]);
+  $("#nav").innerHTML = tabs.map(([k, l]) => `<button data-view="${k}" class="${k === view ? "on" : ""}">${l}</button>`).join("");
+  $("#user").innerHTML = me
+    ? `<span class="muted">${esc(me.name)}</span> <button class="btn ghost sm" data-act="logout">Log out</button>`
+    : `<button class="btn ghost sm" data-auth="login">Sign in</button> <button class="btn sm" data-auth="signup">Sign up</button>`;
+}
+async function show(v) {
+  view = v;
+  if (v !== "discover" && !me) { view = "discover"; return openAuth("login"); }
+  $("#discover").hidden = view !== "discover"; $("#view").hidden = view === "discover";
+  document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.view === view));
+  try {
+    if (view === "discover") await loadProjects();
+    else if (view === "dashboard") await rDash();
+    else if (view === "profile") rProfile();
+    else if (view === "admin") await rAdmin();
+  } catch (e) { toast(e.message, true); }
+}
+
+// ----- Discover -----
+const pc = p => `<div class="card" data-act="open" data-id="${p.id}">
+  <div class="top"><h3>${esc(p.title)}</h3><span class="badge">${esc(p.status)}</span></div>
+  <p>${esc(p.description)}</p><div class="chips">${chips(p.technologies)}</div>
+  <div class="meta"><span>${esc(p.owner_name)} · ${esc(p.category)}</span><span>${p.member_count} on team</span></div></div>`;
+async function loadProjects() {
+  const p = new URLSearchParams({ q: $("#q").value.trim(), category: $("#cat").value, status: $("#st").value });
+  const list = await api("/projects?" + p);
+  $("#list").innerHTML = list.length ? list.map(pc).join("") : `<p class="muted">No projects match. Try another search, or create one!</p>`;
+}
+
+// ----- Project details -----
+async function openProject(id) {
+  const p = await api("/projects/" + id); openId = id;
+  const owner = me && p.owner_id === me.id, admin = me && me.role === "admin";
+  let act = `<button class="btn" data-auth="login">Sign in to join</button>`;
+  if (me) {
+    if (owner) act = `<button class="btn ghost" data-act="edit" data-id="${id}">Edit</button><button class="btn danger" data-act="del" data-id="${id}">Delete</button>`;
+    else if (p.is_member) act = `<button class="btn ghost" data-act="leave" data-id="${id}">Leave project</button>`;
+    else if (p.my_request === "pending") act = `<button class="btn" disabled>Request pending</button>`;
+    else act = `<button class="btn" data-act="req" data-id="${id}">${p.my_request === "rejected" ? "Request again" : "Request to join"}</button>`;
+    if (admin && !owner) act += `<button class="btn danger" data-act="del" data-id="${id}">Remove (admin)</button>`;
+  }
+  $("#detBody").innerHTML = `
+    <div class="top"><h2 style="margin:0">${esc(p.title)}</h2><span class="badge">${esc(p.status)}</span></div>
+    <p class="muted">${esc(p.category)} · by ${esc(p.owner_name)}</p>
+    <p style="white-space:pre-wrap">${esc(p.description)}</p>
+    ${p.goals ? `<h4>Goals</h4><p>${esc(p.goals)}</p>` : ""}
+    <h4>Technologies</h4><div class="chips">${chips(p.technologies) || "<span class='muted'>Not listed</span>"}</div>
+    <h4>Skills needed</h4><div class="chips">${chips(p.required_skills) || "<span class='muted'>Not listed</span>"}</div>
+    <h4>Team (${p.members.length})</h4>
+    <ul class="list">${p.members.map(m => `<li><span>${esc(m.name)} <span class="muted">· ${esc(m.department)}</span></span>
+      <span><span class="badge">${esc(m.role)}</span> ${owner ? `<button class="btn ghost sm" data-act="role" data-id="${id}" data-uid="${m.id}" data-role="${esc(m.role)}">Set role</button>` : ""}</span></li>`).join("")}</ul>
+    <div class="row"><button class="btn ghost" data-close>Close</button>${act}</div>`;
+  if (!$("#detDlg").open) $("#detDlg").showModal();
+}
+
+// ----- Project form (create / edit) -----
+async function openForm(id) {
+  editId = id || null;
+  const p = id ? await api("/projects/" + id) : { title: "", description: "", category: "Web", technologies: "", required_skills: "", goals: "", status: "Planning" };
+  $("#projForm").innerHTML = `<h2 style="margin-top:0">${id ? "Edit project" : "New project"}</h2>
+    <label>Title</label><input name="title" required minlength="3" value="${esc(p.title)}">
+    <label>Description</label><textarea name="description" rows="4" required minlength="10">${esc(p.description)}</textarea>
+    <div class="two"><div><label>Category</label><select name="category">${opt(CATS, p.category)}</select></div>
+    <div><label>Status</label><select name="status">${opt(STS, p.status)}</select></div></div>
+    <label>Technologies (comma separated)</label><input name="technologies" value="${esc(p.technologies)}">
+    <label>Required skills (comma separated)</label><input name="required_skills" value="${esc(p.required_skills)}">
+    <label>Project goals</label><textarea name="goals" rows="2">${esc(p.goals)}</textarea>
+    <div class="row"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn">${id ? "Save changes" : "Create project"}</button></div>`;
+  $("#detDlg").close(); $("#projDlg").showModal();
+}
+$("#projForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  try {
+    await api(editId ? "/projects/" + editId : "/projects", editId ? "PUT" : "POST", Object.fromEntries(new FormData(e.target)));
+    $("#projDlg").close(); toast(editId ? "Project updated" : "Project created"); refresh();
+  } catch (err) { toast(err.message, true); }
+});
+
+// ----- Dashboard -----
+const mini = p => `<li data-act="open" data-id="${p.id}"><span>${esc(p.title)}</span><span class="badge">${esc(p.role || p.status)}</span></li>`;
+const empty = t => `<li class="muted">${t}</li>`;
+async function rDash() {
+  const d = await api("/dashboard");
+  $("#view").innerHTML = `
+    <h1>Welcome back, ${esc(me.name.split(" ")[0])} 👋</h1>
+    <div class="stats"><div class="stat"><b>${d.mine.length}</b>Active projects</div><div class="stat"><b>${d.joined.length}</b>Projects joined</div>
+    <div class="stat"><b>${d.incoming.length}</b>Pending requests</div><div class="stat"><b>${d.notifications.filter(n => !n.is_read).length}</b>New notifications</div></div>
+    <div class="cols"><div>
+      <h2>Requests to join your projects</h2><ul class="list">${d.incoming.map(r => `<li><span><b>${esc(r.name)}</b> → ${esc(r.title)}<br><span class="muted">${esc(r.skills || "No skills listed")}</span></span>
+        <span class="acts"><button class="btn ok sm" data-act="acc" data-id="${r.id}">Accept</button><button class="btn danger sm" data-act="rej" data-id="${r.id}">Reject</button></span></li>`).join("") || empty("No pending requests")}</ul>
+      <h2>My projects</h2><ul class="list">${d.mine.map(mini).join("") || empty("You haven’t created a project yet")}</ul>
+      <h2>Projects I joined</h2><ul class="list">${d.joined.map(mini).join("") || empty("Not on any team yet")}</ul>
+      <h2>My requests</h2><ul class="list">${d.sent.map(r => `<li data-act="open" data-id="${r.project_id}"><span>${esc(r.title)}</span><span class="badge">${esc(r.status)}</span></li>`).join("") || empty("No requests sent")}</ul>
+    </div><div>
+      <h2>Notifications</h2><ul class="list">${d.notifications.map(n => `<li class="${n.is_read ? "" : "unread"}"><span>${esc(n.text)}</span><span class="muted">${date(n.created_at)}</span></li>`).join("") || empty("Nothing yet")}</ul>
+      <h2>Recommended for you</h2><ul class="list">${d.recommended.map(p => `<li data-act="open" data-id="${p.id}"><span>${esc(p.title)}</span><span class="badge">${p.score ? p.score + " skill match" : esc(p.category)}</span></li>`).join("") || empty("No recommendations yet. Add skills in your profile")}</ul>
+      <h2>Recent activity</h2><ul class="list">${d.activity.map(a => `<li><span>${esc(a.text)}</span><span class="muted">${date(a.created_at)}</span></li>`).join("")}</ul>
+    </div></div>`;
+  if (d.notifications.some(n => !n.is_read)) { api("/notifications/read", "POST").then(loadMe).catch(() => {}); }
+}
+
+// ----- Profile -----
+function rProfile() {
+  $("#view").innerHTML = `<h1>My profile</h1><form id="profForm" style="max-width:520px">
+    <label>USN (cannot be changed)</label><input value="${esc(me.usn)}" disabled>
+    <label>Full name</label><input name="name" required value="${esc(me.name)}">
+    <label>College</label><input name="college" required value="${esc(me.college)}">
+    <div class="two"><div><label>Department</label><input name="department" value="${esc(me.department)}"></div>
+    <div><label>Year (1-6)</label><input name="year" type="number" min="1" max="6" value="${me.year}"></div></div>
+    <label>Skills (comma separated)</label><input name="skills" value="${esc(me.skills)}">
+    <label>Interests (comma separated)</label><input name="interests" value="${esc(me.interests)}">
+    <div class="row"><button class="btn">Save profile</button></div></form>`;
+  $("#profForm").onsubmit = async e => {
+    e.preventDefault(); const d = Object.fromEntries(new FormData(e.target)); d.year = +d.year;
+    try { await api("/me", "PUT", d); toast("Profile saved"); await loadMe(); } catch (err) { toast(err.message, true); }
+  };
+}
+
+// ----- Admin -----
+async function rAdmin() {
+  const [s, users, projs] = await Promise.all([api("/admin/stats"), api("/admin/users"), api("/projects")]);
+  $("#view").innerHTML = `<h1>Admin dashboard</h1>
+    <div class="stats"><div class="stat"><b>${s.students}</b>Students</div><div class="stat"><b>${s.projects}</b>Projects</div>
+    <div class="stat"><b>${s.pending_requests}</b>Pending requests</div><div class="stat"><b>${s.memberships}</b>Team memberships</div></div>
+    <p class="muted">By status: ${s.by_status.map(x => `${esc(x.status)} ${x.count}`).join(" · ") || "none"}</p>
+    <h2>Students</h2><div class="scroll"><table><tr><th>USN</th><th>Name</th><th>Department</th><th>Role</th><th>Projects</th><th></th></tr>
+    ${users.map(u => `<tr><td>${esc(u.usn)}</td><td>${esc(u.name)}</td><td>${esc(u.department)}</td><td>${esc(u.role)}</td><td>${u.projects}</td>
+      <td>${u.id === me.id ? "" : `<button class="btn danger sm" data-act="deluser" data-id="${u.id}">Delete</button>`}</td></tr>`).join("")}</table></div>
+    <h2>All projects</h2><ul class="list">${projs.map(p => `<li><span data-act="open" data-id="${p.id}" style="cursor:pointer">${esc(p.title)} <span class="muted">· ${esc(p.owner_name)}</span></span>
+      <button class="btn danger sm" data-act="del" data-id="${p.id}">Remove</button></li>`).join("")}</ul>
+    <h2>Platform activity</h2><ul class="list">${s.activity.map(a => `<li><span>${esc(a.text)}</span><span class="muted">${date(a.created_at)}</span></li>`).join("")}</ul>`;
+}
+
+// ----- Sign in / Sign up / Demo -----
+function openAuth(mode) {
+  authMode = mode; const su = mode === "signup";
+  $("#authForm").innerHTML = `<div class="tabs"><button type="button" class="btn ${su ? "ghost" : ""}" data-auth="login">Sign in</button><button type="button" class="btn ${su ? "" : "ghost"}" data-auth="signup">Sign up</button></div>
+    ${su ? `<label>Full name</label><input name="name" required><label>College</label><input name="college" required>
+    <div class="two"><div><label>Department</label><input name="department"></div><div><label>Year (1-6)</label><input name="year" type="number" min="1" max="6" value="1"></div></div>` : ""}
+    <label>College USN</label><input name="usn" required minlength="3"><label>Password${su ? " (min 6 characters)" : ""}</label><input name="password" type="password" required minlength="6">
+    ${su ? "" : `<label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" name="remember"> Remember me</label>`}
+    <div class="row"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn">${su ? "Create account" : "Sign in"}</button></div>
+    ${su ? "" : `<div class="row" style="justify-content:space-between"><a href="#" data-act="forgot" class="muted">Forgot password?</a><button type="button" class="btn ghost" data-act="demo">Demo Mode: view dashboard</button></div>`}`;
+  if (!$("#authDlg").open) { $("#detDlg").close(); $("#authDlg").showModal(); }
+}
+async function afterLogin(t, remember, msg) {
+  saveToken(t, remember); $("#authDlg").close(); await loadMe(); toast(msg); show(me.role === "admin" ? "admin" : "dashboard");
+}
+$("#authForm").addEventListener("submit", async e => {
+  e.preventDefault(); const d = Object.fromEntries(new FormData(e.target)); d.remember = !!d.remember;
+  if (authMode === "signup") d.year = +d.year;
+  try { const r = await api(authMode === "signup" ? "/register" : "/login", "POST", d);
+    afterLogin(r.token, d.remember, authMode === "signup" ? "Account created. Welcome!" : "Welcome back!");
+  } catch (err) { toast(err.message, true); }
+});
+
+// ----- Actions -----
+async function refresh() { await loadMe(); await show(view); if (openId && $("#detDlg").open) openProject(openId).catch(() => $("#detDlg").close()); }
+const actions = {
+  open: id => openProject(id),
+  edit: id => openForm(id),
+  logout: () => { saveToken(null); loadMe().then(() => show("discover")); toast("Logged out"); },
+  demo: async () => { const r = await api("/demo", "POST"); afterLogin(r.token, false, "Demo Mode: signed in as Demo Student"); },
+  forgot: () => toast("Password reset needs an email service. Ask an admin to reset it for now.", true),
+  req: async id => { await api(`/projects/${id}/request`, "POST"); toast("Request sent to the project owner"); },
+  leave: async id => { await api(`/projects/${id}/leave`, "DELETE"); toast("You left the project"); },
+  del: async id => { if (!confirm("Delete this project permanently?")) return; await api("/projects/" + id, "DELETE"); $("#detDlg").close(); openId = null; toast("Project deleted"); },
+  acc: async id => { await api(`/requests/${id}/accept`, "POST"); toast("Request accepted"); },
+  rej: async id => { await api(`/requests/${id}/reject`, "POST"); toast("Request rejected"); },
+  deluser: async id => { if (!confirm("Delete this student and their projects?")) return; await api("/admin/users/" + id, "DELETE"); toast("Student deleted"); },
+};
+document.addEventListener("click", async e => {
+  const t = e.target;
+  if (t.closest("[data-close]")) return t.closest("dialog").close();
+  const v = t.closest("[data-view]"); if (v) return show(v.dataset.view);
+  const au = t.closest("[data-auth]"); if (au) return openAuth(au.dataset.auth);
+  const a = t.closest("[data-act]"); if (!a) return;
+  e.preventDefault();
+  try {
+    if (a.dataset.act === "role") {
+      const role = prompt("Role or responsibility for this member (e.g. Frontend, Designer):", a.dataset.role);
+      if (!role) return;
+      await api(`/projects/${a.dataset.id}/members/${a.dataset.uid}/role`, "PUT", { role }); toast("Role updated");
+    } else await actions[a.dataset.act](a.dataset.id);
+    if (!["open", "edit", "logout", "demo", "forgot"].includes(a.dataset.act)) refresh();
+  } catch (err) { toast(err.message, true); }
+});
+
+$("#cat").innerHTML = `<option value="">All categories</option>` + opt(CATS);
+$("#st").innerHTML = `<option value="">Any status</option>` + opt(STS);
+$("#newBtn").onclick = () => me ? openForm() : (toast("Please sign in to create a project", true), openAuth("login"));
+let timer; const debounced = () => { clearTimeout(timer); timer = setTimeout(loadProjects, 300); };
+$("#q").oninput = debounced; $("#cat").onchange = loadProjects; $("#st").onchange = loadProjects;
+loadMe().then(() => show("discover"));
+</script>
+</body>
+</html>
