@@ -77,7 +77,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 
 <script>
 // Address of your backend. Change this after you deploy the backend online.
-const API = "http://127.0.0.1:8000";
+const API = "https://campuslaunch-7jhy.onrender.com";
 const CATS = ["Web","Mobile","AI/ML","IoT","Hardware","Other"], STS = ["Planning","In Progress","Completed"];
 let token = null, me = null, view = "discover", authMode = "login", editId = null, openId = null;
 try { token = localStorage.getItem("cl_token") || sessionStorage.getItem("cl_token"); } catch (e) {}
