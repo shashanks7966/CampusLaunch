@@ -5,282 +5,307 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CampusLaunch | Find your next big idea</title>
 <style>
-:root{--bg:#0b1120;--card:#131c31;--line:#243049;--text:#e6ebf5;--muted:#93a0b8;--accent:#6c8cff;--danger:#ff6b6b;--ok:#3ecf8e}
-*{box-sizing:border-box}
-body{margin:0;font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--text)}
-header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
-.brand{font-weight:700;font-size:20px}.brand span{color:var(--accent)}
-nav{display:flex;gap:6px;flex-wrap:wrap}
-nav button{background:none;border:0;color:var(--muted);font:inherit;padding:6px 12px;border-radius:8px;cursor:pointer}
-nav button.on{background:var(--card);color:var(--text)}
-main{max-width:1050px;margin:0 auto;padding:24px 16px}
-h1{font-size:28px;margin:0 0 6px}h2{font-size:19px;margin:26px 0 10px}.muted{color:var(--muted)}
-.bar{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.bar input{flex:2;min-width:180px}.bar select{flex:1;min-width:130px}
-input,textarea,select{width:100%;padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:8px;color:var(--text);font:inherit}
-input:focus,textarea:focus,select:focus{outline:2px solid var(--accent);border-color:transparent}
-input[type=checkbox]{width:auto}
-label{display:block;margin:12px 0 4px;font-size:14px;color:var(--muted)}
-.btn{padding:9px 15px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;font-weight:600;cursor:pointer}
-.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}.btn.danger{background:var(--danger)}.btn.ok{background:var(--ok);color:#06291a}.btn.sm{padding:4px 10px;font-size:13px}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px}
-.card[data-act]{cursor:pointer}.card[data-act]:hover{border-color:var(--accent)}
-.card h3{margin:0;font-size:17px}.card p{margin:0;color:var(--muted);font-size:15px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.top{display:flex;justify-content:space-between;gap:8px;align-items:start}
-.badge{font-size:12px;padding:2px 9px;border-radius:99px;border:1px solid var(--line);white-space:nowrap;color:var(--muted)}
-.chips{display:flex;gap:6px;flex-wrap:wrap}.chip{font-size:12px;padding:2px 10px;border-radius:99px;background:#1d2a47;color:#b8c7ff}
-.meta{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:auto;gap:8px}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:16px 0}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}.stat b{font-size:26px;display:block}
-.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
-ul.list{list-style:none;margin:0;padding:0}
-ul.list li{padding:10px 0;border-bottom:1px solid var(--line);font-size:15px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
-ul.list li[data-act]{cursor:pointer}.unread{border-left:3px solid var(--accent);padding-left:8px}
-.acts{display:flex;gap:6px}
-table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}
-.scroll{overflow-x:auto}
-dialog{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:14px;width:94%;max-width:560px;padding:22px;max-height:92vh}
-dialog::backdrop{background:rgba(0,0,0,.6)}
-.tabs{display:flex;gap:8px;margin-bottom:6px}.tabs .btn{flex:1}
-.row{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1f6f43;color:#fff;padding:10px 18px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%;z-index:20}
-#toast.show{opacity:1}#toast.bad{background:#a83232}
-@media(max-width:560px){.two{grid-template-columns:1fr}h1{font-size:23px}}
+:root{--bg:#f3f5f7;--card:#fff;--line:#e3e8ee;--text:#14213d;--muted:#6b7a8f;--navy:#14213d;--green:#4a7c64;--soft:#e3f1e8;--blue:#e3edfb;--danger:#d64545}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--text)}
+h1{font-size:40px;line-height:1.1;margin:4px 0 6px;letter-spacing:-1px}h1 em{font-style:normal;color:var(--green)}h2{font-size:18px;margin:24px 0 8px}
+.eyebrow{font-size:12px;letter-spacing:.14em;font-weight:700;color:var(--green);text-transform:uppercase}.muted{color:var(--muted)}
+input,textarea,select{width:100%;padding:10px 12px;background:#f6f8fa;border:1px solid var(--line);border-radius:10px;color:var(--text);font:inherit}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--green);background:#fff}
+input[type=checkbox]{width:auto;accent-color:var(--navy)}
+label{display:block;margin:12px 0 4px;font-size:13px;font-weight:600}
+.btn{padding:10px 16px;border:1px solid var(--navy);border-radius:10px;background:var(--navy);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+.btn.ghost{background:#fff;color:var(--navy);border-color:var(--line)}.btn.danger{background:var(--danger);border-color:var(--danger)}.btn.ok{background:var(--green);border-color:var(--green)}
+.btn.sm{padding:4px 10px;font-size:13px}.btn:disabled{opacity:.5;cursor:not-allowed}
+/* auth */
+#auth{display:grid;grid-template-columns:1fr 1fr;min-height:100vh}
+.left{background:var(--navy);color:#fff;padding:40px;display:flex;flex-direction:column;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}.logo i{width:34px;height:34px;border-radius:9px;background:var(--green);display:grid;place-items:center;font-style:normal;color:#fff}.logo b{color:#8fd0ac}
+.left p{font-size:17px;color:#c9d3e3;max-width:340px}.left .eyebrow{color:#8fd0ac}
+.avs{display:flex;align-items:center;gap:10px;font-size:14px;color:#c9d3e3}.avs span,.av{width:30px;height:30px;border-radius:50%;background:#f3c9a8;color:#14213d;display:grid;place-items:center;font-size:11px;font-weight:700;margin-right:-18px}.avs span:nth-child(2){background:#a8e0c0}.avs span:nth-child(3){background:#c9d3f3;margin-right:0}
+.right{display:flex;align-items:center;justify-content:center;padding:32px;background:#fafbfc}
+.form{width:100%;max-width:400px}.form h1{font-size:30px}
+.pw{position:relative}.pw button{position:absolute;right:8px;top:8px;border:0;background:none;cursor:pointer;color:var(--muted)}
+.rowb{display:flex;justify-content:space-between;align-items:center;margin:12px 0;font-size:14px}.rowb label{margin:0;font-weight:400;display:flex;gap:8px;align-items:center}
+.full{width:100%;margin-top:6px}.or{text-align:center;color:var(--muted);font-size:12px;margin:14px 0}
+a{color:var(--green);font-weight:600;cursor:pointer;text-decoration:none}
+@media(max-width:800px){#auth{grid-template-columns:1fr}.left{display:none}}
+/* app */
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 22px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+header .logo i{background:var(--green)}.sp{flex:1}
+#gs{max-width:340px;min-width:140px;border-radius:99px}
+nav{display:flex;gap:2px}nav button{border:0;background:none;font:inherit;color:var(--muted);padding:6px 11px;border-radius:8px;cursor:pointer;font-weight:600}nav button.on{background:var(--soft);color:var(--green)}
+#bell{position:relative;border:0;background:none;font-size:18px;cursor:pointer}
+#bell[data-n]:not([data-n=""])::after{content:attr(data-n);position:absolute;top:-4px;right:-6px;background:var(--danger);color:#fff;border-radius:99px;font-size:10px;padding:0 5px}
+.av{margin:0;background:var(--soft);color:var(--green);cursor:pointer;width:34px;height:34px}
+main{max-width:1100px;margin:0 auto;padding:26px 18px 50px}
+.hero{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap}
+.hero .muted{margin:0}.tools{display:flex;gap:12px;align-items:center;font-size:14px;color:var(--muted)}.tools select{width:auto;border-radius:99px}
+.layout{display:grid;grid-template-columns:230px 1fr;gap:20px;margin-top:18px;align-items:start}
+@media(max-width:800px){.layout{grid-template-columns:1fr}h1{font-size:30px}}
+.side{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.side .h{display:flex;justify-content:space-between;font-weight:700;margin-bottom:6px}.side .h a{font-size:12px;font-weight:400;color:var(--muted)}
+details{border-top:1px solid var(--line);padding:10px 0}summary{cursor:pointer;font-weight:700;font-size:14px}
+.ck{display:flex;gap:8px;align-items:center;font-weight:400;font-size:14px;margin:6px 0 0;text-transform:capitalize}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:14px;box-shadow:0 1px 2px rgba(20,33,61,.04)}
+.top{display:flex;justify-content:space-between;gap:10px;align-items:start}.top h3{margin:0 0 6px;font-size:19px}
+.tags span{font-size:12px;font-weight:600;color:var(--green);background:var(--soft);padding:2px 9px;border-radius:6px;margin-right:6px}
+.card p{color:var(--muted);margin:10px 0}.own{font-size:13px;color:var(--muted)}
+.pills{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}.pill{padding:8px 12px;border-radius:10px;font-size:13px;font-weight:600;background:var(--soft);color:var(--green)}.pill.b{background:#eef3f8;color:#5b8dc9}
+.lg{display:flex;gap:30px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.roles{display:flex;justify-content:space-between;align-items:end;gap:10px;margin-top:12px;flex-wrap:wrap}.roles .eyebrow{color:var(--muted);font-size:11px}
+.rc{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:2px 10px;font-size:12px;margin:4px 6px 0 0}
+.badge{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 9px;color:var(--muted);white-space:nowrap}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:16px 0}.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}.stat b{font-size:26px;display:block}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:22px}
+ul.list{list-style:none;margin:0;padding:0;background:var(--card);border:1px solid var(--line);border-radius:12px}
+ul.list li{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}ul.list li:last-child{border:0}
+ul.list li[data-act]{cursor:pointer}.unread{border-left:3px solid var(--green)}.acts{display:flex;gap:6px}
+table{width:100%;border-collapse:collapse;font-size:14px;background:#fff}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}.scroll{overflow-x:auto}
+dialog{background:#fff;color:var(--text);border:0;border-radius:16px;width:94%;max-width:520px;padding:22px;max-height:92vh;position:relative}
+dialog::backdrop{background:rgba(20,33,61,.5);backdrop-filter:blur(3px)}
+.x{position:absolute;right:14px;top:12px;border:0;background:none;font-size:18px;cursor:pointer;color:var(--muted)}
+.row{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1f6f43;color:#fff;padding:10px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%;z-index:30}#toast.show{opacity:1}#toast.bad{background:#b83232}
+.soc{display:grid;gap:8px}.soc a{display:flex;justify-content:center;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text);font-weight:600}.soc a:hover{border-color:var(--green)}
+.note{background:#fff7e0;border:1px solid #f0d98a;border-radius:10px;padding:10px 12px;margin:12px 0;font-size:14px}
 </style>
 </head>
 <body>
-<header>
-  <div class="brand">Campus<span>Launch</span></div>
-  <nav id="nav"></nav>
-  <div id="user"></div>
-</header>
-<main>
-  <section id="discover">
-    <h1>Turn coursework into something real.</h1>
-    <p class="muted">Find your people, shape a bold idea, and ship projects that make campus better.</p>
-    <div class="bar">
-      <input id="q" placeholder="Search by title, technology or skill…">
-      <select id="cat"></select><select id="st"></select>
-      <button class="btn" id="newBtn">+ New project</button>
-    </div>
-    <div id="list" class="grid"></div>
-  </section>
-  <section id="view" hidden></section>
-</main>
+<!-- ============ SIGN IN / SIGN UP ============ -->
+<div id="auth">
+  <div class="left">
+    <div class="logo"><i>c</i>Campus<b>Launch</b></div>
+    <div><div class="eyebrow">Build together</div><p>Find your people, shape a bold idea, and ship projects that make campus better.</p></div>
+    <div class="avs"><span>AM</span><span>KS</span><span>IR</span>&nbsp;&nbsp;&nbsp;&nbsp;Join 1,200+ student builders</div>
+  </div>
+  <div class="right"><form class="form" id="authForm"></form></div>
+</div>
 
-<dialog id="authDlg"><form id="authForm"></form></dialog>
-<dialog id="projDlg"><form id="projForm"></form></dialog>
-<dialog id="detDlg"><div id="detBody"></div></dialog>
+<!-- ============ MAIN APP ============ -->
+<div id="app" hidden>
+  <header>
+    <div class="logo"><i>c</i>Campus<b>Launch</b></div>
+    <nav id="nav"></nav>
+    <input id="gs" placeholder="Search projects, skills, or people…">
+    <span class="sp"></span>
+    <button class="btn" id="postBtn">+ Post an Idea</button>
+    <button id="bell" data-view="dashboard" title="Notifications">🔔</button>
+    <button class="btn ghost sm" data-act="logout">Logout</button>
+    <div class="av" id="av" data-view="profile" title="My profile"></div>
+  </header>
+  <main>
+    <section id="explore">
+      <div class="hero"><div><div class="eyebrow">Explore together</div><h1>Find your next <em>big idea.</em></h1><p class="muted">Join engineering students building what comes next.</p></div>
+        <div class="tools"><span id="count"></span><span>Sort by: <select id="sort"><option value="new">Newest first</option><option value="open">Most spots open</option><option value="az">Title A–Z</option></select></span></div></div>
+      <div class="layout"><aside class="side" id="side"></aside><div id="list"></div></div>
+    </section>
+    <section id="view" hidden></section>
+  </main>
+</div>
+
+<dialog id="projDlg"><button class="x" data-close>✕</button><form id="projForm"></form></dialog>
+<dialog id="detDlg"><button class="x" data-close>✕</button><div id="detBody"></div></dialog>
 <div id="toast"></div>
 
 <script>
 // Address of your backend. Change this after you deploy the backend online.
 const API = "https://campuslaunch-7jhy.onrender.com";
-const CATS = ["Web","Mobile","AI/ML","IoT","Hardware","Other"], STS = ["Planning","In Progress","Completed"];
-let token = null, me = null, view = "discover", authMode = "login", editId = null, openId = null;
+const BRANCHES = ["Computer Science","Electronics","Information Science","Design","Mechanical"], STS = ["Planning","In Progress","Completed"],
+  CATS = ["Web","Mobile","AI/ML","IoT","Hardware","Other"], SKILLS = ["frontend","hardware","ui design","machine learning","python","flutter","react","arduino"];
+let token = null, me = null, view = "explore", mode = "login", ALL = [], editId = null, openId = null, PROV = [];
+const NAMES = { google: "Google", github: "GitHub", linkedin: "LinkedIn" };
 try { token = localStorage.getItem("cl_token") || sessionStorage.getItem("cl_token"); } catch (e) {}
 
 const $ = s => document.querySelector(s);
 const esc = t => String(t ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const opt = (a, sel) => a.map(x => `<option ${x === sel ? "selected" : ""}>${x}</option>`).join("");
-const chips = s => (s || "").split(",").map(x => x.trim()).filter(Boolean).map(x => `<span class="chip">${esc(x)}</span>`).join("");
+const opt = (a, sel) => a.map(x => `<option ${x === sel ? "selected" : ""}>${esc(x)}</option>`).join("");
+const split = s => (s || "").split(",").map(x => x.trim()).filter(Boolean);
+const ini = n => (n || "?").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+const ord = y => ["", "1st", "2nd", "3rd"][y] || y + "th";
 const date = s => esc((s || "").slice(0, 16));
 
-function toast(m, bad) {
-  const t = $("#toast"); t.textContent = m; t.className = "show" + (bad ? " bad" : "");
-  clearTimeout(toast.t); toast.t = setTimeout(() => t.className = "", 3500);
-}
+function toast(m, bad) { const t = $("#toast"); t.textContent = m; t.className = "show" + (bad ? " bad" : ""); clearTimeout(toast.t); toast.t = setTimeout(() => t.className = "", 3500); }
 async function api(path, method = "GET", body) {
   const h = {}; if (body) h["Content-Type"] = "application/json"; if (token) h.Authorization = "Bearer " + token;
-  let r;
-  try { r = await fetch(API + path, { method, headers: h, body: body ? JSON.stringify(body) : undefined }); }
+  let r; try { r = await fetch(API + path, { method, headers: h, body: body ? JSON.stringify(body) : undefined }); }
   catch (e) { throw new Error("Can’t reach the backend. Is uvicorn running?"); }
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    let m = d.detail; if (Array.isArray(m)) m = m.map(x => (x.loc || []).slice(-1) + ": " + x.msg).join("; ");
-    throw new Error(m || "Something went wrong");
-  }
+  if (!r.ok) { let m = d.detail; if (Array.isArray(m)) m = m.map(x => (x.loc || []).slice(-1) + ": " + x.msg).join("; "); throw new Error(m || "Something went wrong"); }
   return d;
 }
 function saveToken(t, remember) {
   token = t;
-  try { localStorage.removeItem("cl_token"); sessionStorage.removeItem("cl_token");
-    if (t) (remember ? localStorage : sessionStorage).setItem("cl_token", t); } catch (e) {}
+  try { localStorage.removeItem("cl_token"); sessionStorage.removeItem("cl_token"); if (t) (remember ? localStorage : sessionStorage).setItem("cl_token", t); } catch (e) {}
 }
 
-// ----- Header / navigation -----
+// ----- Login gate: nobody sees the app until they sign in -----
 async function loadMe() {
-  me = null;
-  if (token) { try { me = await api("/me"); } catch (e) { saveToken(null); } }
-  const tabs = [["discover", "Discover"]];
-  if (me) tabs.push(["dashboard", "Dashboard" + (me.unread ? ` (${me.unread})` : "")], ["profile", "Profile"]);
-  if (me && me.role === "admin") tabs.push(["admin", "Admin"]);
-  $("#nav").innerHTML = tabs.map(([k, l]) => `<button data-view="${k}" class="${k === view ? "on" : ""}">${l}</button>`).join("");
-  $("#user").innerHTML = me
-    ? `<span class="muted">${esc(me.name)}</span> <button class="btn ghost sm" data-act="logout">Log out</button>`
-    : `<button class="btn ghost sm" data-auth="login">Sign in</button> <button class="btn sm" data-auth="signup">Sign up</button>`;
+  me = null; if (token) { try { me = await api("/me"); } catch (e) { saveToken(null); } }
+  $("#auth").hidden = !!me; $("#app").hidden = !me;
+  if (!me) return renderAuth();
+  $("#nav").innerHTML = [["explore","Explore"],["dashboard","Dashboard"],["profile","Profile"],...(me.role === "admin" ? [["admin","Admin"]] : [])]
+    .map(([k, l]) => `<button data-view="${k}" class="${k === view ? "on" : ""}">${l}</button>`).join("");
+  $("#bell").dataset.n = me.unread || ""; $("#av").textContent = ini(me.name);
 }
-async function show(v) {
-  view = v;
-  if (v !== "discover" && !me) { view = "discover"; return openAuth("login"); }
-  $("#discover").hidden = view !== "discover"; $("#view").hidden = view === "discover";
-  document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.view === view));
-  try {
-    if (view === "discover") await loadProjects();
-    else if (view === "dashboard") await rDash();
-    else if (view === "profile") rProfile();
-    else if (view === "admin") await rAdmin();
-  } catch (e) { toast(e.message, true); }
+function renderAuth() {
+  const su = mode === "signup";
+  $("#authForm").innerHTML = `<div class="eyebrow">${su ? "Join us" : "Welcome back"}</div><h1>${su ? "Create your account" : "Sign in to CampusLaunch"}</h1>
+    <p class="muted">The Project Collaboration Hub for Engineering Students</p>
+    ${su ? `<label>Full name</label><input name="name" required><label>College</label><input name="college" required>
+      <div class="two"><div><label>Department</label><input name="department" placeholder="Computer Science"></div><div><label>Year (1-6)</label><input name="year" type="number" min="1" max="6" value="1"></div></div>` : ""}
+    <label>College USN</label><input name="usn" required minlength="3" placeholder="26PG1CS1000-T" autocomplete="username">
+    <label>Password</label><div class="pw"><input name="password" id="pw" type="password" required minlength="6" placeholder="Enter your password" autocomplete="${su ? "new" : "current"}-password"><button type="button" data-act="eye">👁</button></div>
+    ${su ? "" : `<div class="rowb"><label><input type="checkbox" name="remember" checked> Remember me</label><a data-act="forgot">Forgot Password?</a></div>`}
+    <button class="btn full">${su ? "Create account" : "Sign In"}</button>
+    ${PROV.length ? `<div class="or">— or continue with —</div><div class="soc">${PROV.map(p => `<a href="${API}/auth/${p}/login">Continue with ${NAMES[p]}</a>`).join("")}</div>` : ""}
+    <div class="or">— or —</div>
+    <button type="button" class="btn ghost full" data-act="demo">Demo Mode: View Dashboard</button>
+    <p class="muted" style="text-align:center;margin-top:18px">${su ? "Already registered?" : "New here?"} <a data-act="switch">${su ? "Sign in" : "Create an account"}</a></p>`;
 }
+$("#authForm").addEventListener("submit", async e => {
+  e.preventDefault(); const d = Object.fromEntries(new FormData(e.target)); d.remember = !!d.remember; if (mode === "signup") d.year = +d.year;
+  try { const r = await api(mode === "signup" ? "/register" : "/login", "POST", d); await afterLogin(r.token, d.remember, mode === "signup" ? "Account created. Welcome!" : "Welcome back!"); }
+  catch (err) { toast(err.message, true); }
+});
+async function afterLogin(t, remember, msg) { saveToken(t, remember); await loadMe(); toast(msg); show(me.role === "admin" ? "admin" : "explore"); }
 
-// ----- Discover -----
-const pc = p => `<div class="card" data-act="open" data-id="${p.id}">
-  <div class="top"><h3>${esc(p.title)}</h3><span class="badge">${esc(p.status)}</span></div>
-  <p>${esc(p.description)}</p><div class="chips">${chips(p.technologies)}</div>
-  <div class="meta"><span>${esc(p.owner_name)} · ${esc(p.category)}</span><span>${p.member_count} on team</span></div></div>`;
-async function loadProjects() {
-  const p = new URLSearchParams({ q: $("#q").value.trim(), category: $("#cat").value, status: $("#st").value });
-  const list = await api("/projects?" + p);
-  $("#list").innerHTML = list.length ? list.map(pc).join("") : `<p class="muted">No projects match. Try another search, or create one!</p>`;
+// ----- Views -----
+async function show(v) {
+  if (me && !me.usn && v !== "profile") { v = "profile"; toast("Please add your USN and college to continue", true); }
+  view = v; $("#explore").hidden = v !== "explore"; $("#view").hidden = v === "explore";
+  document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
+  try { if (v === "explore") await loadProjects(); else if (v === "dashboard") await rDash(); else if (v === "profile") rProfile(); else if (v === "admin") await rAdmin(); }
+  catch (e) { toast(e.message, true); }
+}
+async function refresh() { await loadMe(); if (me) { await show(view); if (openId && $("#detDlg").open) openProject(openId).catch(() => $("#detDlg").close()); } }
+
+// ----- Explore: filters + project cards -----
+const grp = (t, k, items) => `<details><summary>${t}</summary>${items.map(x => `<label class="ck"><input type="checkbox" data-f="${k}" value="${esc(x)}"> ${esc(x)}</label>`).join("")}</details>`;
+$("#side").innerHTML = `<div class="h"><span>⚲ Filters</span><a data-act="clear">Clear all</a></div>${grp("Branch / Course", "branch", BRANCHES)}${grp("Project Status", "status", STS)}${grp("Skills Needed", "skill", SKILLS)}`;
+const checked = k => [...document.querySelectorAll(`[data-f="${k}"]:checked`)].map(i => i.value);
+
+async function loadProjects() { ALL = await api("/projects?q=" + encodeURIComponent($("#gs").value.trim())); renderList(); }
+function renderList() {
+  const br = checked("branch"), st = checked("status"), sk = checked("skill"), so = $("#sort").value;
+  const L = ALL.filter(p => (!br.length || br.includes(p.owner_department)) && (!st.length || st.includes(p.status)) &&
+    (!sk.length || sk.some(x => (p.required_skills + " " + p.roles_needed + " " + p.technologies).toLowerCase().includes(x))));
+  L.sort(so === "open" ? (a, c) => (c.team_size - c.member_count) - (a.team_size - a.member_count) : so === "az" ? (a, c) => a.title.localeCompare(c.title) : (a, c) => c.id - a.id);
+  $("#count").textContent = `▦ ${L.length} project${L.length === 1 ? "" : "s"} open`;
+  $("#list").innerHTML = L.map(p => { const need = p.team_size - p.member_count; return `<div class="card">
+    <div class="top"><div><h3>${esc(p.title)}</h3><div class="tags">${split(p.technologies).map(t => `<span>#${esc(t)}</span>`).join("")}</div></div><div class="av" style="margin:0;cursor:default">${ini(p.owner_name)}</div></div>
+    <p>${esc(p.description)}</p><div class="own">👤 ${esc(p.owner_name)} · ${esc(p.owner_department || "—")} · ${ord(p.owner_year)} Year <span class="badge">${esc(p.status)}</span></div>
+    <div class="pills"><div class="pill">👥 ${p.member_count}/${p.team_size} Joined</div><div class="pill b">${need > 0 ? need + " " + (need === 1 ? "person" : "people") + " needed" : "Team is full"}</div></div>
+    <div class="lg"><span>📍 ${esc(p.location || "To be decided")}</span><span>🕒 ${esc(p.meeting_time || "To be decided")}</span></div>
+    <div class="roles"><div><div class="eyebrow">Roles needed</div>${split(p.roles_needed).map(r => `<span class="rc">${esc(r)}</span>`).join("") || "<span class='muted'>Open to all</span>"}</div>
+    <button class="btn ghost sm" data-act="open" data-id="${p.id}">View Details</button></div></div>`; }).join("") || `<p class="muted">No projects match. Clear the filters or post your own idea!</p>`;
 }
 
 // ----- Project details -----
 async function openProject(id) {
   const p = await api("/projects/" + id); openId = id;
-  const owner = me && p.owner_id === me.id, admin = me && me.role === "admin";
-  let act = `<button class="btn" data-auth="login">Sign in to join</button>`;
-  if (me) {
-    if (owner) act = `<button class="btn ghost" data-act="edit" data-id="${id}">Edit</button><button class="btn danger" data-act="del" data-id="${id}">Delete</button>`;
-    else if (p.is_member) act = `<button class="btn ghost" data-act="leave" data-id="${id}">Leave project</button>`;
-    else if (p.my_request === "pending") act = `<button class="btn" disabled>Request pending</button>`;
-    else act = `<button class="btn" data-act="req" data-id="${id}">${p.my_request === "rejected" ? "Request again" : "Request to join"}</button>`;
-    if (admin && !owner) act += `<button class="btn danger" data-act="del" data-id="${id}">Remove (admin)</button>`;
-  }
-  $("#detBody").innerHTML = `
-    <div class="top"><h2 style="margin:0">${esc(p.title)}</h2><span class="badge">${esc(p.status)}</span></div>
-    <p class="muted">${esc(p.category)} · by ${esc(p.owner_name)}</p>
-    <p style="white-space:pre-wrap">${esc(p.description)}</p>
-    ${p.goals ? `<h4>Goals</h4><p>${esc(p.goals)}</p>` : ""}
-    <h4>Technologies</h4><div class="chips">${chips(p.technologies) || "<span class='muted'>Not listed</span>"}</div>
-    <h4>Skills needed</h4><div class="chips">${chips(p.required_skills) || "<span class='muted'>Not listed</span>"}</div>
-    <h4>Team (${p.members.length})</h4>
-    <ul class="list">${p.members.map(m => `<li><span>${esc(m.name)} <span class="muted">· ${esc(m.department)}</span></span>
+  const owner = p.owner_id === me.id, admin = me.role === "admin", full = p.members.length >= p.team_size;
+  let act;
+  if (owner) act = `<button class="btn ghost" data-act="edit" data-id="${id}">Edit</button><button class="btn danger" data-act="del" data-id="${id}">Delete</button>`;
+  else if (p.is_member) act = `<button class="btn ghost" data-act="leave" data-id="${id}">Leave project</button>`;
+  else if (p.my_request === "pending") act = `<button class="btn" disabled>Request pending</button>`;
+  else act = `<button class="btn" data-act="req" data-id="${id}" ${full ? "disabled" : ""}>${full ? "Team is full" : p.my_request === "rejected" ? "Request again" : "Request to join"}</button>`;
+  if (admin && !owner) act += `<button class="btn danger" data-act="del" data-id="${id}">Remove (admin)</button>`;
+  $("#detBody").innerHTML = `<div class="eyebrow">${esc(p.category)} · ${esc(p.status)}</div><h2 style="margin:4px 0">${esc(p.title)}</h2>
+    <p class="muted">by ${esc(p.owner_name)}${p.branch_restrictions ? " · Open to: " + esc(p.branch_restrictions) : ""}</p>
+    <p style="white-space:pre-wrap">${esc(p.description)}</p>${p.goals ? `<b>Goals</b><p>${esc(p.goals)}</p>` : ""}
+    <p class="muted">📍 ${esc(p.location || "To be decided")} &nbsp; 🕒 ${esc(p.meeting_time || "To be decided")}</p>
+    <b>Roles needed</b><div>${split(p.roles_needed).map(r => `<span class="rc">${esc(r)}</span>`).join("") || "Open to all"}</div>
+    <b style="display:block;margin-top:12px">Skills wanted</b><div>${split(p.required_skills).map(r => `<span class="rc">${esc(r)}</span>`).join("") || "—"}</div>
+    <h2>Team (${p.members.length}/${p.team_size})</h2><ul class="list">${p.members.map(m => `<li><span>${esc(m.name)} <span class="muted">· ${esc(m.department)}</span></span>
       <span><span class="badge">${esc(m.role)}</span> ${owner ? `<button class="btn ghost sm" data-act="role" data-id="${id}" data-uid="${m.id}" data-role="${esc(m.role)}">Set role</button>` : ""}</span></li>`).join("")}</ul>
-    <div class="row"><button class="btn ghost" data-close>Close</button>${act}</div>`;
+    <div class="row">${act}</div>`;
   if (!$("#detDlg").open) $("#detDlg").showModal();
 }
 
-// ----- Project form (create / edit) -----
+// ----- Post an idea (2 steps) -----
 async function openForm(id) {
   editId = id || null;
-  const p = id ? await api("/projects/" + id) : { title: "", description: "", category: "Web", technologies: "", required_skills: "", goals: "", status: "Planning" };
-  $("#projForm").innerHTML = `<h2 style="margin-top:0">${id ? "Edit project" : "New project"}</h2>
-    <label>Title</label><input name="title" required minlength="3" value="${esc(p.title)}">
-    <label>Description</label><textarea name="description" rows="4" required minlength="10">${esc(p.description)}</textarea>
-    <div class="two"><div><label>Category</label><select name="category">${opt(CATS, p.category)}</select></div>
-    <div><label>Status</label><select name="status">${opt(STS, p.status)}</select></div></div>
-    <label>Technologies (comma separated)</label><input name="technologies" value="${esc(p.technologies)}">
-    <label>Required skills (comma separated)</label><input name="required_skills" value="${esc(p.required_skills)}">
-    <label>Project goals</label><textarea name="goals" rows="2">${esc(p.goals)}</textarea>
-    <div class="row"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn">${id ? "Save changes" : "Create project"}</button></div>`;
+  const p = id ? await api("/projects/" + id) : { title: "", description: "", branch_restrictions: "", category: "Web", status: "Planning", technologies: "", required_skills: "", goals: "", location: "", meeting_time: "", roles_needed: "", team_size: 5 };
+  $("#projForm").innerHTML = `<div class="eyebrow" id="stepLbl">Step 1 of 2</div><h2 style="margin:2px 0 0">${id ? "Edit idea" : "Post a new idea"}</h2>
+    <div id="s1"><label>Project Title</label><input name="title" required minlength="3" placeholder="e.g. Smart campus energy monitor" value="${esc(p.title)}">
+      <label>Description</label><textarea name="description" rows="4" required minlength="10" placeholder="What are you building and why?">${esc(p.description)}</textarea>
+      <label>Branch / Course restrictions</label><input name="branch_restrictions" placeholder="Open to all, CSE, ECE…" value="${esc(p.branch_restrictions)}">
+      <button type="button" class="btn full" style="margin-top:16px" data-act="next">Continue to logistics</button></div>
+    <div id="s2" hidden><div class="two"><div><label>Category</label><select name="category">${opt(CATS, p.category)}</select></div><div><label>Status</label><select name="status">${opt(STS, p.status)}</select></div></div>
+      <label>Technologies (comma separated)</label><input name="technologies" placeholder="Flutter, Firebase" value="${esc(p.technologies)}">
+      <label>Roles needed (comma separated)</label><input name="roles_needed" placeholder="Frontend Dev, UI/UX Designer" value="${esc(p.roles_needed)}">
+      <label>Skills wanted (comma separated)</label><input name="required_skills" value="${esc(p.required_skills)}">
+      <div class="two"><div><label>Meeting place</label><input name="location" placeholder="Innovation Hub 204" value="${esc(p.location)}"></div><div><label>Meeting time</label><input name="meeting_time" placeholder="Tuesdays at 5 PM" value="${esc(p.meeting_time)}"></div></div>
+      <div class="two"><div><label>Team size (incl. you)</label><input name="team_size" type="number" min="2" max="50" value="${p.team_size}"></div><div><label>Goal</label><input name="goals" value="${esc(p.goals)}"></div></div>
+      <div class="row"><button type="button" class="btn ghost" data-act="back">Back</button><button class="btn">${id ? "Save changes" : "Post idea"}</button></div></div>`;
   $("#detDlg").close(); $("#projDlg").showModal();
 }
 $("#projForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  try {
-    await api(editId ? "/projects/" + editId : "/projects", editId ? "PUT" : "POST", Object.fromEntries(new FormData(e.target)));
-    $("#projDlg").close(); toast(editId ? "Project updated" : "Project created"); refresh();
-  } catch (err) { toast(err.message, true); }
+  e.preventDefault(); const d = Object.fromEntries(new FormData(e.target)); d.team_size = +d.team_size;
+  try { await api(editId ? "/projects/" + editId : "/projects", editId ? "PUT" : "POST", d); $("#projDlg").close(); toast(editId ? "Idea updated" : "Your idea is live!"); show("explore"); loadMe(); }
+  catch (err) { toast(err.message, true); }
 });
 
 // ----- Dashboard -----
 const mini = p => `<li data-act="open" data-id="${p.id}"><span>${esc(p.title)}</span><span class="badge">${esc(p.role || p.status)}</span></li>`;
-const empty = t => `<li class="muted">${t}</li>`;
+const none = t => `<li class="muted">${t}</li>`;
 async function rDash() {
   const d = await api("/dashboard");
-  $("#view").innerHTML = `
-    <h1>Welcome back, ${esc(me.name.split(" ")[0])} 👋</h1>
+  $("#view").innerHTML = `<div class="eyebrow">Dashboard</div><h1>Welcome back, <em>${esc(me.name.split(" ")[0])}</em></h1>
     <div class="stats"><div class="stat"><b>${d.mine.length}</b>Active projects</div><div class="stat"><b>${d.joined.length}</b>Projects joined</div>
     <div class="stat"><b>${d.incoming.length}</b>Pending requests</div><div class="stat"><b>${d.notifications.filter(n => !n.is_read).length}</b>New notifications</div></div>
     <div class="cols"><div>
       <h2>Requests to join your projects</h2><ul class="list">${d.incoming.map(r => `<li><span><b>${esc(r.name)}</b> → ${esc(r.title)}<br><span class="muted">${esc(r.skills || "No skills listed")}</span></span>
-        <span class="acts"><button class="btn ok sm" data-act="acc" data-id="${r.id}">Accept</button><button class="btn danger sm" data-act="rej" data-id="${r.id}">Reject</button></span></li>`).join("") || empty("No pending requests")}</ul>
-      <h2>My projects</h2><ul class="list">${d.mine.map(mini).join("") || empty("You haven’t created a project yet")}</ul>
-      <h2>Projects I joined</h2><ul class="list">${d.joined.map(mini).join("") || empty("Not on any team yet")}</ul>
-      <h2>My requests</h2><ul class="list">${d.sent.map(r => `<li data-act="open" data-id="${r.project_id}"><span>${esc(r.title)}</span><span class="badge">${esc(r.status)}</span></li>`).join("") || empty("No requests sent")}</ul>
+        <span class="acts"><button class="btn ok sm" data-act="acc" data-id="${r.id}">Accept</button><button class="btn danger sm" data-act="rej" data-id="${r.id}">Reject</button></span></li>`).join("") || none("No pending requests")}</ul>
+      <h2>My projects</h2><ul class="list">${d.mine.map(mini).join("") || none("You haven’t posted an idea yet")}</ul>
+      <h2>Projects I joined</h2><ul class="list">${d.joined.map(mini).join("") || none("Not on any team yet")}</ul>
+      <h2>My requests</h2><ul class="list">${d.sent.map(r => `<li data-act="open" data-id="${r.project_id}"><span>${esc(r.title)}</span><span class="badge">${esc(r.status)}</span></li>`).join("") || none("No requests sent")}</ul>
     </div><div>
-      <h2>Notifications</h2><ul class="list">${d.notifications.map(n => `<li class="${n.is_read ? "" : "unread"}"><span>${esc(n.text)}</span><span class="muted">${date(n.created_at)}</span></li>`).join("") || empty("Nothing yet")}</ul>
-      <h2>Recommended for you</h2><ul class="list">${d.recommended.map(p => `<li data-act="open" data-id="${p.id}"><span>${esc(p.title)}</span><span class="badge">${p.score ? p.score + " skill match" : esc(p.category)}</span></li>`).join("") || empty("No recommendations yet. Add skills in your profile")}</ul>
-      <h2>Recent activity</h2><ul class="list">${d.activity.map(a => `<li><span>${esc(a.text)}</span><span class="muted">${date(a.created_at)}</span></li>`).join("")}</ul>
-    </div></div>`;
-  if (d.notifications.some(n => !n.is_read)) { api("/notifications/read", "POST").then(loadMe).catch(() => {}); }
+      <h2>Notifications</h2><ul class="list">${d.notifications.map(n => `<li class="${n.is_read ? "" : "unread"}"><span>${esc(n.text)}</span><span class="muted">${date(n.created_at)}</span></li>`).join("") || none("Nothing yet")}</ul>
+      <h2>Recommended for you</h2><ul class="list">${d.recommended.map(p => `<li data-act="open" data-id="${p.id}"><span>${esc(p.title)}</span><span class="badge">${p.score ? p.score + " skill match" : esc(p.category)}</span></li>`).join("") || none("Add skills in your profile for recommendations")}</ul>
+      <h2>Recent activity</h2><ul class="list">${d.activity.map(a => `<li><span>${esc(a.text)}</span><span class="muted">${date(a.created_at)}</span></li>`).join("")}</ul></div></div>`;
+  if (d.notifications.some(n => !n.is_read)) api("/notifications/read", "POST").then(loadMe).catch(() => {});
 }
 
 // ----- Profile -----
-function rProfile() {
-  $("#view").innerHTML = `<h1>My profile</h1><form id="profForm" style="max-width:520px">
-    <label>USN (cannot be changed)</label><input value="${esc(me.usn)}" disabled>
-    <label>Full name</label><input name="name" required value="${esc(me.name)}">
-    <label>College</label><input name="college" required value="${esc(me.college)}">
-    <div class="two"><div><label>Department</label><input name="department" value="${esc(me.department)}"></div>
-    <div><label>Year (1-6)</label><input name="year" type="number" min="1" max="6" value="${me.year}"></div></div>
-    <label>Skills (comma separated)</label><input name="skills" value="${esc(me.skills)}">
-    <label>Interests (comma separated)</label><input name="interests" value="${esc(me.interests)}">
-    <div class="row"><button class="btn">Save profile</button></div></form>`;
-  $("#profForm").onsubmit = async e => {
-    e.preventDefault(); const d = Object.fromEntries(new FormData(e.target)); d.year = +d.year;
-    try { await api("/me", "PUT", d); toast("Profile saved"); await loadMe(); } catch (err) { toast(err.message, true); }
-  };
+async function rProfile() {
+  let linked = []; try { linked = (await api("/auth/linked")).linked; } catch (e) {}
+  $("#view").innerHTML = `<div class="eyebrow">Account</div><h1>My profile</h1>${me.usn ? "" : `<div class="note">Almost there! Add your college USN and college name to start posting ideas and joining teams.</div>`}<form id="profForm" style="max-width:520px">
+    <label>College USN${me.usn ? " (cannot be changed)" : ""}</label><input name="usn" value="${esc(me.usn)}" ${me.usn ? "disabled" : "required minlength=3"}>
+    <label>Full name</label><input name="name" required value="${esc(me.name)}"><label>College</label><input name="college" required value="${esc(me.college)}">
+    <div class="two"><div><label>Department</label><input name="department" value="${esc(me.department)}"></div><div><label>Year (1-6)</label><input name="year" type="number" min="1" max="6" value="${me.year}"></div></div>
+    <label>Skills (comma separated)</label><input name="skills" value="${esc(me.skills)}"><label>Interests (comma separated)</label><input name="interests" value="${esc(me.interests)}">
+    <div class="row"><button class="btn">Save profile</button></div></form>
+    ${PROV.length ? `<h2>Connected accounts</h2><ul class="list" style="max-width:520px">${PROV.map(p => `<li><span>${NAMES[p]}</span>${linked.includes(p) ? `<span class="badge">Connected</span>` : `<button class="btn ghost sm" data-act="connect" data-id="${p}">Connect</button>`}</li>`).join("")}</ul>` : ""}`;
+  $("#profForm").onsubmit = async e => { e.preventDefault(); const d = Object.fromEntries(new FormData(e.target)); d.year = +d.year;
+    try { await api("/me", "PUT", d); toast("Profile saved"); await loadMe(); if (d.usn) show("explore"); } catch (err) { toast(err.message, true); } };
 }
 
 // ----- Admin -----
 async function rAdmin() {
   const [s, users, projs] = await Promise.all([api("/admin/stats"), api("/admin/users"), api("/projects")]);
-  $("#view").innerHTML = `<h1>Admin dashboard</h1>
-    <div class="stats"><div class="stat"><b>${s.students}</b>Students</div><div class="stat"><b>${s.projects}</b>Projects</div>
-    <div class="stat"><b>${s.pending_requests}</b>Pending requests</div><div class="stat"><b>${s.memberships}</b>Team memberships</div></div>
+  $("#view").innerHTML = `<div class="eyebrow">Administrator</div><h1>Admin dashboard</h1>
+    <div class="stats"><div class="stat"><b>${s.students}</b>Students</div><div class="stat"><b>${s.projects}</b>Projects</div><div class="stat"><b>${s.pending_requests}</b>Pending requests</div><div class="stat"><b>${s.memberships}</b>Team memberships</div></div>
     <p class="muted">By status: ${s.by_status.map(x => `${esc(x.status)} ${x.count}`).join(" · ") || "none"}</p>
     <h2>Students</h2><div class="scroll"><table><tr><th>USN</th><th>Name</th><th>Department</th><th>Role</th><th>Projects</th><th></th></tr>
-    ${users.map(u => `<tr><td>${esc(u.usn)}</td><td>${esc(u.name)}</td><td>${esc(u.department)}</td><td>${esc(u.role)}</td><td>${u.projects}</td>
-      <td>${u.id === me.id ? "" : `<button class="btn danger sm" data-act="deluser" data-id="${u.id}">Delete</button>`}</td></tr>`).join("")}</table></div>
-    <h2>All projects</h2><ul class="list">${projs.map(p => `<li><span data-act="open" data-id="${p.id}" style="cursor:pointer">${esc(p.title)} <span class="muted">· ${esc(p.owner_name)}</span></span>
-      <button class="btn danger sm" data-act="del" data-id="${p.id}">Remove</button></li>`).join("")}</ul>
+    ${users.map(u => `<tr><td>${esc(u.usn)}</td><td>${esc(u.name)}</td><td>${esc(u.department)}</td><td>${esc(u.role)}</td><td>${u.projects}</td><td>${u.id === me.id ? "" : `<button class="btn danger sm" data-act="deluser" data-id="${u.id}">Delete</button>`}</td></tr>`).join("")}</table></div>
+    <h2>All projects</h2><ul class="list">${projs.map(p => `<li><span data-act="open" data-id="${p.id}" style="cursor:pointer">${esc(p.title)} <span class="muted">· ${esc(p.owner_name)}</span></span><button class="btn danger sm" data-act="del" data-id="${p.id}">Remove</button></li>`).join("")}</ul>
     <h2>Platform activity</h2><ul class="list">${s.activity.map(a => `<li><span>${esc(a.text)}</span><span class="muted">${date(a.created_at)}</span></li>`).join("")}</ul>`;
 }
 
-// ----- Sign in / Sign up / Demo -----
-function openAuth(mode) {
-  authMode = mode; const su = mode === "signup";
-  $("#authForm").innerHTML = `<div class="tabs"><button type="button" class="btn ${su ? "ghost" : ""}" data-auth="login">Sign in</button><button type="button" class="btn ${su ? "" : "ghost"}" data-auth="signup">Sign up</button></div>
-    ${su ? `<label>Full name</label><input name="name" required><label>College</label><input name="college" required>
-    <div class="two"><div><label>Department</label><input name="department"></div><div><label>Year (1-6)</label><input name="year" type="number" min="1" max="6" value="1"></div></div>` : ""}
-    <label>College USN</label><input name="usn" required minlength="3"><label>Password${su ? " (min 6 characters)" : ""}</label><input name="password" type="password" required minlength="6">
-    ${su ? "" : `<label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" name="remember"> Remember me</label>`}
-    <div class="row"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn">${su ? "Create account" : "Sign in"}</button></div>
-    ${su ? "" : `<div class="row" style="justify-content:space-between"><a href="#" data-act="forgot" class="muted">Forgot password?</a><button type="button" class="btn ghost" data-act="demo">Demo Mode: view dashboard</button></div>`}`;
-  if (!$("#authDlg").open) { $("#detDlg").close(); $("#authDlg").showModal(); }
-}
-async function afterLogin(t, remember, msg) {
-  saveToken(t, remember); $("#authDlg").close(); await loadMe(); toast(msg); show(me.role === "admin" ? "admin" : "dashboard");
-}
-$("#authForm").addEventListener("submit", async e => {
-  e.preventDefault(); const d = Object.fromEntries(new FormData(e.target)); d.remember = !!d.remember;
-  if (authMode === "signup") d.year = +d.year;
-  try { const r = await api(authMode === "signup" ? "/register" : "/login", "POST", d);
-    afterLogin(r.token, d.remember, authMode === "signup" ? "Account created. Welcome!" : "Welcome back!");
-  } catch (err) { toast(err.message, true); }
-});
-
-// ----- Actions -----
-async function refresh() { await loadMe(); await show(view); if (openId && $("#detDlg").open) openProject(openId).catch(() => $("#detDlg").close()); }
+// ----- Click handling -----
 const actions = {
-  open: id => openProject(id),
-  edit: id => openForm(id),
-  logout: () => { saveToken(null); loadMe().then(() => show("discover")); toast("Logged out"); },
-  demo: async () => { const r = await api("/demo", "POST"); afterLogin(r.token, false, "Demo Mode: signed in as Demo Student"); },
+  open: id => openProject(id), edit: id => openForm(id),
+  logout: () => { saveToken(null); loadMe(); toast("Logged out"); },
+  demo: async () => { const r = await api("/demo", "POST"); await afterLogin(r.token, false, "Demo Mode: signed in as Demo Student"); },
   forgot: () => toast("Password reset needs an email service. Ask an admin to reset it for now.", true),
+  switch: () => { mode = mode === "login" ? "signup" : "login"; renderAuth(); },
+  eye: () => { const i = $("#pw"); i.type = i.type === "password" ? "text" : "password"; },
+  clear: () => { document.querySelectorAll("[data-f]").forEach(i => i.checked = false); renderList(); },
+  next: () => { if ([...$("#s1").querySelectorAll("input,textarea")].every(i => i.reportValidity())) { $("#s1").hidden = true; $("#s2").hidden = false; $("#stepLbl").textContent = "Step 2 of 2"; } },
+  back: () => { $("#s1").hidden = false; $("#s2").hidden = true; $("#stepLbl").textContent = "Step 1 of 2"; },
+  connect: async p => { const r = await api(`/auth/${p}/link`, "POST"); location.href = r.url; },
   req: async id => { await api(`/projects/${id}/request`, "POST"); toast("Request sent to the project owner"); },
   leave: async id => { await api(`/projects/${id}/leave`, "DELETE"); toast("You left the project"); },
   del: async id => { if (!confirm("Delete this project permanently?")) return; await api("/projects/" + id, "DELETE"); $("#detDlg").close(); openId = null; toast("Project deleted"); },
@@ -288,29 +313,34 @@ const actions = {
   rej: async id => { await api(`/requests/${id}/reject`, "POST"); toast("Request rejected"); },
   deluser: async id => { if (!confirm("Delete this student and their projects?")) return; await api("/admin/users/" + id, "DELETE"); toast("Student deleted"); },
 };
+const NOREFRESH = ["connect", "open", "edit", "logout", "demo", "forgot", "switch", "eye", "clear", "next", "back"];
 document.addEventListener("click", async e => {
   const t = e.target;
   if (t.closest("[data-close]")) return t.closest("dialog").close();
   const v = t.closest("[data-view]"); if (v) return show(v.dataset.view);
-  const au = t.closest("[data-auth]"); if (au) return openAuth(au.dataset.auth);
   const a = t.closest("[data-act]"); if (!a) return;
   e.preventDefault();
   try {
     if (a.dataset.act === "role") {
-      const role = prompt("Role or responsibility for this member (e.g. Frontend, Designer):", a.dataset.role);
-      if (!role) return;
+      const role = prompt("Role or responsibility for this member (e.g. Frontend, Designer):", a.dataset.role); if (!role) return;
       await api(`/projects/${a.dataset.id}/members/${a.dataset.uid}/role`, "PUT", { role }); toast("Role updated");
     } else await actions[a.dataset.act](a.dataset.id);
-    if (!["open", "edit", "logout", "demo", "forgot"].includes(a.dataset.act)) refresh();
+    if (!NOREFRESH.includes(a.dataset.act)) refresh();
   } catch (err) { toast(err.message, true); }
 });
-
-$("#cat").innerHTML = `<option value="">All categories</option>` + opt(CATS);
-$("#st").innerHTML = `<option value="">Any status</option>` + opt(STS);
-$("#newBtn").onclick = () => me ? openForm() : (toast("Please sign in to create a project", true), openAuth("login"));
-let timer; const debounced = () => { clearTimeout(timer); timer = setTimeout(loadProjects, 300); };
-$("#q").oninput = debounced; $("#cat").onchange = loadProjects; $("#st").onchange = loadProjects;
-loadMe().then(() => show("discover"));
+$("#postBtn").onclick = () => openForm();
+let timer; $("#gs").oninput = () => { clearTimeout(timer); timer = setTimeout(() => view === "explore" ? loadProjects() : show("explore"), 300); };
+$("#sort").onchange = renderList; $("#side").addEventListener("change", renderList);
+(async () => {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get("token")) saveToken(h.get("token"), true);
+  history.replaceState(null, "", location.pathname + location.search);
+  try { PROV = (await api("/auth/providers")).enabled; } catch (e) {}
+  await loadMe();
+  if (h.get("error")) toast(h.get("error"), true);
+  if (h.get("linked")) toast(NAMES[h.get("linked")] + " connected");
+  if (me) show(h.get("linked") ? "profile" : "explore");
+})();
 </script>
 </body>
 </html>
