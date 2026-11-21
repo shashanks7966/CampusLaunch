@@ -110,7 +110,7 @@ dialog::backdrop{background:rgba(20,33,61,.5);backdrop-filter:blur(3px)}
 
 <script>
 // Address of your backend. Change this after you deploy the backend online.
-const API = "https://campuslaunch-1.onrender.com/";
+const API = "https://campuslaunch-1.onrender.com";
 const BRANCHES = ["Computer Science","Electronics","Information Science","Design","Mechanical"], STS = ["Planning","In Progress","Completed"],
   CATS = ["Web","Mobile","AI/ML","IoT","Hardware","Other"], SKILLS = ["frontend","hardware","ui design","machine learning","python","flutter","react","arduino"];
 let token = null, me = null, view = "explore", mode = "login", ALL = [], editId = null, openId = null, PROV = [];
@@ -133,7 +133,7 @@ async function api(path, method = "GET", body) {
   let r; try { r = await fetch(API + path, { method, headers: h, body: body ? JSON.stringify(body) : undefined }); }
   catch (e) { throw new Error("Can’t reach the backend. Is uvicorn running?"); }
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) { let m = d.detail; if (Array.isArray(m)) m = m.map(x => (x.loc || []).slice(-1) + ": " + x.msg).join("; "); throw new Error(m || "Something went wrong"); }
+  if (!r.ok) { let m = d.detail; if (Array.isArray(m)) m = m.map(x => (x.loc || []).slice(-1) + ": " + x.msg).join("; "); const err = new Error(m || "Something went wrong"); err.status = r.status; throw err; }
   return d;
 }
 function saveToken(t, remember) {
@@ -143,7 +143,7 @@ function saveToken(t, remember) {
 
 // ----- Login gate: nobody sees the app until they sign in -----
 async function loadMe() {
-  me = null; if (token) { try { me = await api("/me"); } catch (e) { saveToken(null); } }
+  me = null; loadMe.err = ""; if (token) { try { me = await api("/me"); } catch (e) { loadMe.err = e.message; if (e.status === 401) saveToken(null); } }
   $("#auth").hidden = !!me; $("#app").hidden = !me;
   if (!me) return renderAuth();
   $("#nav").innerHTML = [["explore","Explore"],["dashboard","Dashboard"],["profile","Profile"],...(me.role === "admin" ? [["admin","Admin"]] : [])]
@@ -171,7 +171,7 @@ $("#authForm").addEventListener("submit", async e => {
   try { const r = await api(mode === "signup" ? "/register" : "/login", "POST", d); await afterLogin(r.token, d.remember, mode === "signup" ? "Account created. Welcome!" : "Welcome back!"); }
   catch (err) { toast(err.message, true); }
 });
-async function afterLogin(t, remember, msg) { saveToken(t, remember); await loadMe(); toast(msg); show(me.role === "admin" ? "admin" : "explore"); }
+async function afterLogin(t, remember, msg) { saveToken(t, remember); await loadMe(); if (!me) return toast("Signed in, but your profile could not be loaded: " + (loadMe.err || "unknown error"), true); toast(msg); show(me.role === "admin" ? "admin" : "explore"); }
 
 // ----- Views -----
 async function show(v) {
@@ -341,6 +341,7 @@ $("#sort").onchange = renderList; $("#side").addEventListener("change", renderLi
   history.replaceState(null, "", location.pathname + location.search);
   try { PROV = (await api("/auth/providers")).enabled; } catch (e) {}
   await loadMe();
+  if (!me && loadMe.err) toast("Could not load your profile: " + loadMe.err, true);
   if (h.get("error")) toast(h.get("error"), true);
   if (h.get("linked")) toast(NAMES[h.get("linked")] + " connected");
   if (me) show(h.get("linked") ? "profile" : "explore");
