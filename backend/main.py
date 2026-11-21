@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS projects(
   id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title TEXT NOT NULL, description TEXT NOT NULL, category TEXT DEFAULT 'Other',
   technologies TEXT DEFAULT '', required_skills TEXT DEFAULT '', goals TEXT DEFAULT '',
-  status TEXT DEFAULT 'Planning', created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+  status TEXT DEFAULT 'Planning', team_size INTEGER DEFAULT 5, location TEXT DEFAULT '', meeting_time TEXT DEFAULT '',
+  roles_needed TEXT DEFAULT '', branch_restrictions TEXT DEFAULT '', created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS members(
   project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -146,6 +147,11 @@ def seed():
             pid.append(cur.lastrowid)
             c.execute("INSERT INTO members(project_id,user_id,role) VALUES(?,?,'Lead')", (cur.lastrowid, ids[owner]))
             c.execute("INSERT INTO activity(text) VALUES(?)", (f"{dict((p[0], p[1]) for p in people)[owner]} created “{t}”",))
+        c.executemany("UPDATE projects SET team_size=?,location=?,meeting_time=?,roles_needed=? WHERE id=?", [
+            (5, "Innovation Hub 204", "Tuesdays at 5 PM", "Frontend Dev (Flutter), UI/UX Designer (Figma)", pid[0]),
+            (4, "Library West Wing", "Wednesdays at 4 PM", "ML Engineer, Backend Dev", pid[1]),
+            (6, "Mech Lab 202", "Thursdays at 6 PM", "Hardware Designer (Arduino/IoT), Data Analyst", pid[2]),
+            (4, "Design Studio", "Fridays at 3 PM", "Frontend Dev (React), QA Tester", pid[3])])
         c.execute("INSERT INTO members(project_id,user_id,role) VALUES(?,?,'Developer')", (pid[1], ids["DEMO001"]))
         c.execute("INSERT INTO members(project_id,user_id,role) VALUES(?,?,'Hardware')", (pid[0], ids["1XX21EC010"]))
         c.execute("INSERT INTO requests(project_id,user_id) VALUES(?,?)", (pid[0], ids["1XX22IS005"]))
@@ -192,6 +198,11 @@ class ProjectIn(BaseModel):
     required_skills: str = Field("", max_length=300)
     goals: str = Field("", max_length=1000)
     status: str = Field("Planning", pattern="^(Planning|In Progress|Completed)$")
+    team_size: int = Field(5, ge=2, le=50)
+    location: str = Field("", max_length=150)
+    meeting_time: str = Field("", max_length=100)
+    roles_needed: str = Field("", max_length=300)
+    branch_restrictions: str = Field("", max_length=200)
 
 
 class RoleIn(BaseModel):
@@ -245,7 +256,7 @@ def update_me(d: Profile, u=Depends(current_user), db=Depends(get_db)):
 # ---------- Projects ----------
 @app.get("/projects")
 def list_projects(q_: Optional[str] = Query(None, alias="q"), category: str = "", status: str = "", db=Depends(get_db)):
-    sql = ("SELECT p.*, u.name owner_name, (SELECT COUNT(*) FROM members m WHERE m.project_id=p.id) member_count "
+    sql = ("SELECT p.*, u.name owner_name, u.department owner_department, u.year owner_year, (SELECT COUNT(*) FROM members m WHERE m.project_id=p.id) member_count "
            "FROM projects p JOIN users u ON u.id=p.owner_id WHERE 1=1")
     p = []
     if q_:
@@ -260,8 +271,9 @@ def list_projects(q_: Optional[str] = Query(None, alias="q"), category: str = ""
 
 @app.post("/projects", status_code=201)
 def create_project(d: ProjectIn, u=Depends(current_user), db=Depends(get_db)):
-    cur = db.execute("INSERT INTO projects(owner_id,title,description,category,technologies,required_skills,goals,status) VALUES(?,?,?,?,?,?,?,?)",
-                     (u["id"], d.title, d.description, d.category, d.technologies, d.required_skills, d.goals, d.status))
+    cur = db.execute("INSERT INTO projects(owner_id,title,description,category,technologies,required_skills,goals,status,team_size,location,meeting_time,roles_needed,branch_restrictions) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                     (u["id"], d.title, d.description, d.category, d.technologies, d.required_skills, d.goals, d.status,
+                      d.team_size, d.location, d.meeting_time, d.roles_needed, d.branch_restrictions))
     db.execute("INSERT INTO members(project_id,user_id,role) VALUES(?,?,'Lead')", (cur.lastrowid, u["id"]))
     log(db, f"{u['name']} created “{d.title}”")
     return {"id": cur.lastrowid}
@@ -290,8 +302,9 @@ def edit_project(pid: int, d: ProjectIn, u=Depends(current_user), db=Depends(get
     p = get_project(db, pid)
     if p["owner_id"] != u["id"] and u["role"] != "admin":
         raise HTTPException(403, "Only the owner can edit this project")
-    db.execute("UPDATE projects SET title=?,description=?,category=?,technologies=?,required_skills=?,goals=?,status=? WHERE id=?",
-               (d.title, d.description, d.category, d.technologies, d.required_skills, d.goals, d.status, pid))
+    db.execute("UPDATE projects SET title=?,description=?,category=?,technologies=?,required_skills=?,goals=?,status=?,team_size=?,location=?,meeting_time=?,roles_needed=?,branch_restrictions=? WHERE id=?",
+               (d.title, d.description, d.category, d.technologies, d.required_skills, d.goals, d.status,
+                d.team_size, d.location, d.meeting_time, d.roles_needed, d.branch_restrictions, pid))
     if d.status != p["status"]:
         for m in q(db, "SELECT user_id FROM members WHERE project_id=? AND user_id!=?", (pid, u["id"])):
             notify(db, m["user_id"], f"“{d.title}” is now {d.status}")
@@ -316,6 +329,8 @@ def request_join(pid: int, u=Depends(current_user), db=Depends(get_db)):
     p = get_project(db, pid)
     if db.execute("SELECT 1 FROM members WHERE project_id=? AND user_id=?", (pid, u["id"])).fetchone():
         raise HTTPException(409, "You are already on this team")
+    if db.execute("SELECT COUNT(*) c FROM members WHERE project_id=?", (pid,)).fetchone()["c"] >= p["team_size"]:
+        raise HTTPException(400, "This team is full")
     r = db.execute("SELECT status FROM requests WHERE project_id=? AND user_id=?", (pid, u["id"])).fetchone()
     if r and r["status"] == "pending":
         raise HTTPException(409, "Request already pending")
@@ -335,6 +350,8 @@ def decide(rid, accept, u, db):
         raise HTTPException(403, "Only the project owner can decide")
     if r["status"] != "pending":
         raise HTTPException(409, "Already decided")
+    if accept and db.execute("SELECT COUNT(*) c FROM members WHERE project_id=?", (r["project_id"],)).fetchone()["c"] >= db.execute("SELECT team_size FROM projects WHERE id=?", (r["project_id"],)).fetchone()["team_size"]:
+        raise HTTPException(400, "Team is full")
     db.execute("UPDATE requests SET status=? WHERE id=?", ("accepted" if accept else "rejected", rid))
     if accept:
         db.execute("INSERT OR IGNORE INTO members(project_id,user_id) VALUES(?,?)", (r["project_id"], r["user_id"]))
