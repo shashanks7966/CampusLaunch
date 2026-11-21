@@ -110,7 +110,7 @@ dialog::backdrop{background:rgba(20,33,61,.5);backdrop-filter:blur(3px)}
 
 <script>
 // Address of your backend. Change this after you deploy the backend online.
-const API = "https://campuslaunch-7jhy.onrender.com";
+const API = "http://127.0.0.1:8000";
 const BRANCHES = ["Computer Science","Electronics","Information Science","Design","Mechanical"], STS = ["Planning","In Progress","Completed"],
   CATS = ["Web","Mobile","AI/ML","IoT","Hardware","Other"], SKILLS = ["frontend","hardware","ui design","machine learning","python","flutter","react","arduino"];
 let token = null, me = null, view = "explore", mode = "login", ALL = [], editId = null, openId = null, PROV = [];
@@ -124,6 +124,8 @@ const split = s => (s || "").split(",").map(x => x.trim()).filter(Boolean);
 const ini = n => (n || "?").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
 const ord = y => ["", "1st", "2nd", "3rd"][y] || y + "th";
 const date = s => esc((s || "").slice(0, 16));
+const incomplete = () => me && (!me.usn || !me.college || !(me.email || me.phone));
+const contact = x => [x.phone && `📞 <a href="tel:${esc(x.phone)}">${esc(x.phone)}</a>`, x.email && `✉️ <a href="mailto:${esc(x.email)}">${esc(x.email)}</a>`].filter(Boolean).join(" &nbsp; ") || "<span class='muted'>No contact added</span>";
 
 function toast(m, bad) { const t = $("#toast"); t.textContent = m; t.className = "show" + (bad ? " bad" : ""); clearTimeout(toast.t); toast.t = setTimeout(() => t.className = "", 3500); }
 async function api(path, method = "GET", body) {
@@ -153,7 +155,8 @@ function renderAuth() {
   $("#authForm").innerHTML = `<div class="eyebrow">${su ? "Join us" : "Welcome back"}</div><h1>${su ? "Create your account" : "Sign in to CampusLaunch"}</h1>
     <p class="muted">The Project Collaboration Hub for Engineering Students</p>
     ${su ? `<label>Full name</label><input name="name" required><label>College</label><input name="college" required>
-      <div class="two"><div><label>Department</label><input name="department" placeholder="Computer Science"></div><div><label>Year (1-6)</label><input name="year" type="number" min="1" max="6" value="1"></div></div>` : ""}
+      <div class="two"><div><label>Department</label><input name="department" placeholder="Computer Science"></div><div><label>Year (1-6)</label><input name="year" type="number" min="1" max="6" value="1"></div></div>
+      <div class="two"><div><label>Phone number</label><input name="phone" type="tel" placeholder="+91 98765 43210"></div><div><label>Email</label><input name="email" type="email" placeholder="you@college.edu"></div></div><div class="muted" style="font-size:12px">Add at least one, so project owners can reach you.</div>` : ""}
     <label>College USN</label><input name="usn" required minlength="3" placeholder="26PG1CS1000-T" autocomplete="username">
     <label>Password</label><div class="pw"><input name="password" id="pw" type="password" required minlength="6" placeholder="Enter your password" autocomplete="${su ? "new" : "current"}-password"><button type="button" data-act="eye">👁</button></div>
     ${su ? "" : `<div class="rowb"><label><input type="checkbox" name="remember" checked> Remember me</label><a data-act="forgot">Forgot Password?</a></div>`}
@@ -164,7 +167,7 @@ function renderAuth() {
     <p class="muted" style="text-align:center;margin-top:18px">${su ? "Already registered?" : "New here?"} <a data-act="switch">${su ? "Sign in" : "Create an account"}</a></p>`;
 }
 $("#authForm").addEventListener("submit", async e => {
-  e.preventDefault(); const d = Object.fromEntries(new FormData(e.target)); d.remember = !!d.remember; if (mode === "signup") d.year = +d.year;
+  e.preventDefault(); const d = Object.fromEntries(new FormData(e.target)); d.remember = !!d.remember; if (mode === "signup") { d.year = +d.year; if (!d.email && !d.phone) return toast("Please add a phone number or email so project owners can reach you", true); }
   try { const r = await api(mode === "signup" ? "/register" : "/login", "POST", d); await afterLogin(r.token, d.remember, mode === "signup" ? "Account created. Welcome!" : "Welcome back!"); }
   catch (err) { toast(err.message, true); }
 });
@@ -172,7 +175,7 @@ async function afterLogin(t, remember, msg) { saveToken(t, remember); await load
 
 // ----- Views -----
 async function show(v) {
-  if (me && !me.usn && v !== "profile") { v = "profile"; toast("Please add your USN and college to continue", true); }
+  if (me && incomplete() && v !== "profile") { v = "profile"; toast("Please add your USN, college and a phone number or email to continue", true); }
   view = v; $("#explore").hidden = v !== "explore"; $("#view").hidden = v === "explore";
   document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
   try { if (v === "explore") await loadProjects(); else if (v === "dashboard") await rDash(); else if (v === "profile") rProfile(); else if (v === "admin") await rAdmin(); }
@@ -217,7 +220,7 @@ async function openProject(id) {
     <p class="muted">📍 ${esc(p.location || "To be decided")} &nbsp; 🕒 ${esc(p.meeting_time || "To be decided")}</p>
     <b>Roles needed</b><div>${split(p.roles_needed).map(r => `<span class="rc">${esc(r)}</span>`).join("") || "Open to all"}</div>
     <b style="display:block;margin-top:12px">Skills wanted</b><div>${split(p.required_skills).map(r => `<span class="rc">${esc(r)}</span>`).join("") || "—"}</div>
-    <h2>Team (${p.members.length}/${p.team_size})</h2><ul class="list">${p.members.map(m => `<li><span>${esc(m.name)} <span class="muted">· ${esc(m.department)}</span></span>
+    <h2>Team (${p.members.length}/${p.team_size})</h2><ul class="list">${p.members.map(m => `<li><span>${esc(m.name)} <span class="muted">· ${esc(m.department)}</span>${m.email || m.phone ? `<br><span style="font-size:13px">${contact(m)}</span>` : ""}</span>
       <span><span class="badge">${esc(m.role)}</span> ${owner ? `<button class="btn ghost sm" data-act="role" data-id="${id}" data-uid="${m.id}" data-role="${esc(m.role)}">Set role</button>` : ""}</span></li>`).join("")}</ul>
     <div class="row">${act}</div>`;
   if (!$("#detDlg").open) $("#detDlg").showModal();
@@ -256,7 +259,7 @@ async function rDash() {
     <div class="stats"><div class="stat"><b>${d.mine.length}</b>Active projects</div><div class="stat"><b>${d.joined.length}</b>Projects joined</div>
     <div class="stat"><b>${d.incoming.length}</b>Pending requests</div><div class="stat"><b>${d.notifications.filter(n => !n.is_read).length}</b>New notifications</div></div>
     <div class="cols"><div>
-      <h2>Requests to join your projects</h2><ul class="list">${d.incoming.map(r => `<li><span><b>${esc(r.name)}</b> → ${esc(r.title)}<br><span class="muted">${esc(r.skills || "No skills listed")}</span></span>
+      <h2>Requests to join your projects</h2><ul class="list">${d.incoming.map(r => `<li><span><b>${esc(r.name)}</b> → ${esc(r.title)}<br><span class="muted">${esc(r.skills || "No skills listed")}</span><br>${contact(r)}</span>
         <span class="acts"><button class="btn ok sm" data-act="acc" data-id="${r.id}">Accept</button><button class="btn danger sm" data-act="rej" data-id="${r.id}">Reject</button></span></li>`).join("") || none("No pending requests")}</ul>
       <h2>My projects</h2><ul class="list">${d.mine.map(mini).join("") || none("You haven’t posted an idea yet")}</ul>
       <h2>Projects I joined</h2><ul class="list">${d.joined.map(mini).join("") || none("Not on any team yet")}</ul>
@@ -271,15 +274,16 @@ async function rDash() {
 // ----- Profile -----
 async function rProfile() {
   let linked = []; try { linked = (await api("/auth/linked")).linked; } catch (e) {}
-  $("#view").innerHTML = `<div class="eyebrow">Account</div><h1>My profile</h1>${me.usn ? "" : `<div class="note">Almost there! Add your college USN and college name to start posting ideas and joining teams.</div>`}<form id="profForm" style="max-width:520px">
-    <label>College USN${me.usn ? " (cannot be changed)" : ""}</label><input name="usn" value="${esc(me.usn)}" ${me.usn ? "disabled" : "required minlength=3"}>
+  $("#view").innerHTML = `<div class="eyebrow">Account</div><h1>My profile</h1>${incomplete() ? `<div class="note">Almost there! Add your USN, college, and a phone number or email. Project owners need a way to contact you.</div>` : ""}<form id="profForm" style="max-width:520px">
+    <label>College USN</label><input name="usn" required minlength="3" value="${esc(me.usn)}"><div class="muted" style="font-size:12px">You sign in with your USN, so remember the new one if you change it.</div>
     <label>Full name</label><input name="name" required value="${esc(me.name)}"><label>College</label><input name="college" required value="${esc(me.college)}">
     <div class="two"><div><label>Department</label><input name="department" value="${esc(me.department)}"></div><div><label>Year (1-6)</label><input name="year" type="number" min="1" max="6" value="${me.year}"></div></div>
+    <div class="two"><div><label>Phone number</label><input name="phone" type="tel" placeholder="+91 98765 43210" value="${esc(me.phone)}"></div><div><label>Email</label><input name="email" type="email" placeholder="you@college.edu" value="${esc(me.email)}"></div></div><div class="muted" style="font-size:12px">Shown only to project owners you request to join, and to your teammates.</div>
     <label>Skills (comma separated)</label><input name="skills" value="${esc(me.skills)}"><label>Interests (comma separated)</label><input name="interests" value="${esc(me.interests)}">
     <div class="row"><button class="btn">Save profile</button></div></form>
     ${PROV.length ? `<h2>Connected accounts</h2><ul class="list" style="max-width:520px">${PROV.map(p => `<li><span>${NAMES[p]}</span>${linked.includes(p) ? `<span class="badge">Connected</span>` : `<button class="btn ghost sm" data-act="connect" data-id="${p}">Connect</button>`}</li>`).join("")}</ul>` : ""}`;
   $("#profForm").onsubmit = async e => { e.preventDefault(); const d = Object.fromEntries(new FormData(e.target)); d.year = +d.year;
-    try { await api("/me", "PUT", d); toast("Profile saved"); await loadMe(); if (d.usn) show("explore"); } catch (err) { toast(err.message, true); } };
+    try { await api("/me", "PUT", d); const was = incomplete(); toast("Profile saved"); await loadMe(); if (was && !incomplete()) show("explore"); else if (view === "profile") rProfile(); } catch (err) { toast(err.message, true); } };
 }
 
 // ----- Admin -----
@@ -288,8 +292,8 @@ async function rAdmin() {
   $("#view").innerHTML = `<div class="eyebrow">Administrator</div><h1>Admin dashboard</h1>
     <div class="stats"><div class="stat"><b>${s.students}</b>Students</div><div class="stat"><b>${s.projects}</b>Projects</div><div class="stat"><b>${s.pending_requests}</b>Pending requests</div><div class="stat"><b>${s.memberships}</b>Team memberships</div></div>
     <p class="muted">By status: ${s.by_status.map(x => `${esc(x.status)} ${x.count}`).join(" · ") || "none"}</p>
-    <h2>Students</h2><div class="scroll"><table><tr><th>USN</th><th>Name</th><th>Department</th><th>Role</th><th>Projects</th><th></th></tr>
-    ${users.map(u => `<tr><td>${esc(u.usn)}</td><td>${esc(u.name)}</td><td>${esc(u.department)}</td><td>${esc(u.role)}</td><td>${u.projects}</td><td>${u.id === me.id ? "" : `<button class="btn danger sm" data-act="deluser" data-id="${u.id}">Delete</button>`}</td></tr>`).join("")}</table></div>
+    <h2>Students</h2><div class="scroll"><table><tr><th>USN</th><th>Name</th><th>Department</th><th>Contact</th><th>Role</th><th>Projects</th><th></th></tr>
+    ${users.map(u => `<tr><td>${esc(u.usn)}</td><td>${esc(u.name)}</td><td>${esc(u.department)}</td><td>${contact(u)}</td><td>${esc(u.role)}</td><td>${u.projects}</td><td>${u.id === me.id ? "" : `<button class="btn danger sm" data-act="deluser" data-id="${u.id}">Delete</button>`}</td></tr>`).join("")}</table></div>
     <h2>All projects</h2><ul class="list">${projs.map(p => `<li><span data-act="open" data-id="${p.id}" style="cursor:pointer">${esc(p.title)} <span class="muted">· ${esc(p.owner_name)}</span></span><button class="btn danger sm" data-act="del" data-id="${p.id}">Remove</button></li>`).join("")}</ul>
     <h2>Platform activity</h2><ul class="list">${s.activity.map(a => `<li><span>${esc(a.text)}</span><span class="muted">${date(a.created_at)}</span></li>`).join("")}</ul>`;
 }
