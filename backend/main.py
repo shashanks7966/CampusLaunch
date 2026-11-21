@@ -1,9 +1,12 @@
-import base64, hashlib, hmac, os, secrets, time
+import base64, hashlib, hmac, json, os, secrets, time
+from urllib.parse import quote, urlencode
 from contextlib import asynccontextmanager
 from typing import Optional
 
+import httpx
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from psycopg.rows import dict_row
@@ -16,6 +19,16 @@ if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set. Add your Neon connection string (see .env.example).")
 SECRET = os.getenv("SECRET_KEY", "dev-secret-change-me")
 ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000").rstrip("/")   # public address of THIS backend
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5500").rstrip("/")  # public address of the website
+PROVIDERS = {
+    "google": dict(auth="https://accounts.google.com/o/oauth2/v2/auth", token="https://oauth2.googleapis.com/token",
+                   info="https://openidconnect.googleapis.com/v1/userinfo", scope="openid email profile"),
+    "github": dict(auth="https://github.com/login/oauth/authorize", token="https://github.com/login/oauth/access_token",
+                   info="https://api.github.com/user", scope="read:user"),
+    "linkedin": dict(auth="https://www.linkedin.com/oauth/v2/authorization", token="https://www.linkedin.com/oauth/v2/accessToken",
+                     info="https://api.linkedin.com/v2/userinfo", scope="openid profile email"),
+}
 
 # A small pool of reusable database connections (faster than reconnecting every request)
 pool = ConnectionPool(
@@ -27,7 +40,7 @@ pool = ConnectionPool(
 TS = "TEXT DEFAULT to_char(now() AT TIME ZONE 'UTC','YYYY-MM-DD HH24:MI')"
 SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS users(
-  id SERIAL PRIMARY KEY, usn TEXT UNIQUE NOT NULL, name TEXT NOT NULL, college TEXT NOT NULL,
+  id SERIAL PRIMARY KEY, usn TEXT UNIQUE, name TEXT NOT NULL, college TEXT NOT NULL,
   department TEXT DEFAULT '', year INTEGER DEFAULT 1, skills TEXT DEFAULT '', interests TEXT DEFAULT '',
   role TEXT DEFAULT 'student', salt TEXT NOT NULL, pw TEXT NOT NULL, created_at {TS});
 CREATE TABLE IF NOT EXISTS projects(
@@ -49,6 +62,9 @@ CREATE TABLE IF NOT EXISTS notifications(
   text TEXT NOT NULL, is_read INTEGER DEFAULT 0, created_at {TS});
 CREATE TABLE IF NOT EXISTS activity(
   id SERIAL PRIMARY KEY, text TEXT NOT NULL, created_at {TS});
+CREATE TABLE IF NOT EXISTS social_accounts(
+  id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL, provider_id TEXT NOT NULL, created_at {TS}, UNIQUE(provider, provider_id));
 """
 
 
@@ -115,6 +131,12 @@ def current_user(u=Depends(optional_user)):
     return u
 
 
+def student_user(u=Depends(current_user)):
+    if not u["usn"]:
+        raise HTTPException(403, "Please add your USN and college in your profile first")
+    return u
+
+
 def admin_user(u=Depends(current_user)):
     if u["role"] != "admin":
         raise HTTPException(403, "Admins only")
@@ -166,6 +188,7 @@ def seed(db):
 def init_db():
     with pool.connection() as db:
         db.execute(SCHEMA)
+        db.execute("ALTER TABLE users ALTER COLUMN usn DROP NOT NULL")  # upgrade for existing databases
         if not db.execute("SELECT 1 FROM users LIMIT 1").fetchone():
             seed(db)  # sample data is only added to an empty database
         pw = os.getenv("ADMIN_PASSWORD")
@@ -208,6 +231,7 @@ class Login(BaseModel):
 
 
 class Profile(BaseModel):
+    usn: Optional[str] = Field(None, min_length=3, max_length=30)
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     college: Optional[str] = Field(None, min_length=1, max_length=200)
     department: Optional[str] = Field(None, max_length=100)
@@ -274,6 +298,13 @@ def me(u=Depends(current_user), db=Depends(get_db)):
 @app.put("/me")
 def update_me(d: Profile, u=Depends(current_user), db=Depends(get_db)):
     data = d.model_dump(exclude_none=True)
+    if "usn" in data:
+        if u["usn"]:
+            data.pop("usn")  # a USN can't be changed once it is set
+        else:
+            data["usn"] = data["usn"].strip().upper()
+            if db.execute("SELECT 1 FROM users WHERE usn=%s", (data["usn"],)).fetchone():
+                raise HTTPException(409, "USN already registered")
     if data:
         db.execute(f"UPDATE users SET {','.join(k + '=%s' for k in data)} WHERE id=%s", (*data.values(), u["id"]))
     return {"ok": True}
@@ -297,7 +328,7 @@ def list_projects(q_: Optional[str] = Query(None, alias="q"), category: str = ""
 
 
 @app.post("/projects", status_code=201)
-def create_project(d: ProjectIn, u=Depends(current_user), db=Depends(get_db)):
+def create_project(d: ProjectIn, u=Depends(student_user), db=Depends(get_db)):
     pid = insert(db, "INSERT INTO projects(owner_id,title,description,category,technologies,required_skills,goals,status,team_size,location,meeting_time,roles_needed,branch_restrictions) "
                      "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                  (u["id"], d.title, d.description, d.category, d.technologies, d.required_skills, d.goals, d.status,
@@ -354,7 +385,7 @@ def delete_project(pid: int, u=Depends(current_user), db=Depends(get_db)):
 
 # ---------- Collaboration ----------
 @app.post("/projects/{pid}/request", status_code=201)
-def request_join(pid: int, u=Depends(current_user), db=Depends(get_db)):
+def request_join(pid: int, u=Depends(student_user), db=Depends(get_db)):
     p = get_project(db, pid)
     if db.execute("SELECT 1 FROM members WHERE project_id=%s AND user_id=%s", (pid, u["id"])).fetchone():
         raise HTTPException(409, "You are already on this team")
@@ -471,3 +502,118 @@ def admin_delete_user(uid: int, a=Depends(admin_user), db=Depends(get_db)):
         raise HTTPException(400, "You can't delete your own account")
     db.execute("DELETE FROM users WHERE id=%s", (uid,))
     return {"ok": True}
+
+
+# ---------- Sign in with Google / GitHub / LinkedIn ----------
+def sign(data, ttl):
+    body = base64.urlsafe_b64encode(json.dumps({**data, "e": int(time.time() + ttl)}).encode()).decode()
+    return body + "." + hmac.new(SECRET.encode(), body.encode(), "sha256").hexdigest()
+
+
+def unsign(s):
+    try:
+        body, sig = s.rsplit(".", 1)
+        if hmac.compare_digest(sig, hmac.new(SECRET.encode(), body.encode(), "sha256").hexdigest()):
+            d = json.loads(base64.urlsafe_b64decode(body.encode()))
+            if d["e"] > time.time():
+                return d
+    except Exception:
+        pass
+    return None
+
+
+def creds(p):
+    return os.getenv(f"{p.upper()}_CLIENT_ID"), os.getenv(f"{p.upper()}_CLIENT_SECRET")
+
+
+def enabled():
+    return [p for p in PROVIDERS if all(creds(p))]  # only providers whose keys you have set
+
+
+def check_provider(p):
+    if p not in enabled():
+        raise HTTPException(404, "This sign-in option is not set up")
+
+
+def back(fragment):
+    return RedirectResponse(f"{FRONTEND_URL}/#{fragment}")
+
+
+@app.get("/auth/providers")
+def providers():
+    return {"enabled": enabled()}
+
+
+@app.get("/auth/linked")
+def linked(u=Depends(current_user), db=Depends(get_db)):
+    return {"linked": [r["provider"] for r in q(db, "SELECT provider FROM social_accounts WHERE user_id=%s", (u["id"],))]}
+
+
+@app.post("/auth/{provider}/link")
+def link_ticket(provider: str, u=Depends(current_user)):
+    check_provider(provider)  # a short-lived ticket proves who is connecting the account
+    return {"url": f"{BACKEND_URL}/auth/{provider}/login?ticket={sign({'u': u['id'], 'k': 'link'}, 300)}"}
+
+
+@app.get("/auth/{provider}/login")
+def oauth_login(provider: str, ticket: str = ""):
+    check_provider(provider)
+    link_uid = 0
+    if ticket:
+        t = unsign(ticket)
+        if not t or t.get("k") != "link":
+            raise HTTPException(400, "This link expired. Go back and try again.")
+        link_uid = t["u"]
+    nonce = secrets.token_urlsafe(16)
+    state = sign({"p": provider, "n": nonce, "l": link_uid}, 600)
+    cid, _ = creds(provider)
+    params = {"client_id": cid, "redirect_uri": f"{BACKEND_URL}/auth/{provider}/callback",
+              "response_type": "code", "scope": PROVIDERS[provider]["scope"], "state": state}
+    resp = RedirectResponse(PROVIDERS[provider]["auth"] + "?" + urlencode(params))
+    resp.set_cookie("oauth_nonce", nonce, max_age=600, httponly=True, samesite="lax", secure=BACKEND_URL.startswith("https"))
+    return resp
+
+
+@app.get("/auth/{provider}/callback")
+def oauth_callback(provider: str, request: Request, code: str = "", state: str = "", error: str = "", db=Depends(get_db)):
+    check_provider(provider)
+    st = unsign(state) if state else None
+    if error or not code or not st or st.get("p") != provider or not hmac.compare_digest(st["n"], request.cookies.get("oauth_nonce", "")):
+        return back("error=" + quote("Sign-in was cancelled or expired. Please try again."))
+    cid, secret = creds(provider)
+    cfg = PROVIDERS[provider]
+    try:
+        with httpx.Client(timeout=15) as h:
+            tok = h.post(cfg["token"], headers={"Accept": "application/json"}, data={
+                "grant_type": "authorization_code", "code": code, "client_id": cid, "client_secret": secret,
+                "redirect_uri": f"{BACKEND_URL}/auth/{provider}/callback"}).json()
+            at = tok.get("access_token")
+            info = h.get(cfg["info"], headers={"Authorization": f"Bearer {at}", "Accept": "application/json"}).json() if at else {}
+        pid = str(info.get("sub") or info.get("id") or "")
+        name = (info.get("name") or info.get("login") or "New Student")[:100]
+        if not pid:
+            raise ValueError("no id")
+    except Exception:
+        return back("error=" + quote(f"Could not complete sign-in with {provider.title()}."))
+    row = db.execute("SELECT user_id FROM social_accounts WHERE provider=%s AND provider_id=%s", (provider, pid)).fetchone()
+    link_uid = st.get("l", 0)
+    if link_uid:  # connecting an extra login method to an existing account
+        if row and row["user_id"] != link_uid:
+            return back("error=" + quote("That account is already connected to another student."))
+        if not row:
+            db.execute("INSERT INTO social_accounts(user_id,provider,provider_id) VALUES(%s,%s,%s)", (link_uid, provider, pid))
+        resp = back("linked=" + provider)
+    else:
+        new = row is None
+        if new:  # first social login: create the account, USN and college are added afterwards
+            salt = secrets.token_hex(16)
+            uid = insert(db, "INSERT INTO users(name,college,salt,pw) VALUES(%s,'',%s,%s)", (name, salt, hash_pw(secrets.token_urlsafe(32), salt)))
+            db.execute("INSERT INTO social_accounts(user_id,provider,provider_id) VALUES(%s,%s,%s)", (uid, provider, pid))
+            notify(db, uid, "Welcome to CampusLaunch! Add your USN and college to start joining projects.")
+            log(db, f"{name} joined CampusLaunch")
+        else:
+            uid = row["user_id"]
+        resp = back(f"token={make_token(uid, 7)}&new={int(new)}")
+    db.commit()
+    resp.delete_cookie("oauth_nonce")
+    return resp
