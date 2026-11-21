@@ -1,4 +1,4 @@
-import base64, hashlib, hmac, json, os, secrets, time
+import base64, hashlib, hmac, json, os, re, secrets, time
 from urllib.parse import quote, urlencode
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -42,7 +42,7 @@ SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS users(
   id SERIAL PRIMARY KEY, usn TEXT UNIQUE, name TEXT NOT NULL, college TEXT NOT NULL,
   department TEXT DEFAULT '', year INTEGER DEFAULT 1, skills TEXT DEFAULT '', interests TEXT DEFAULT '',
-  role TEXT DEFAULT 'student', salt TEXT NOT NULL, pw TEXT NOT NULL, created_at {TS});
+  email TEXT DEFAULT '', phone TEXT DEFAULT '', role TEXT DEFAULT 'student', salt TEXT NOT NULL, pw TEXT NOT NULL, created_at {TS});
 CREATE TABLE IF NOT EXISTS projects(
   id SERIAL PRIMARY KEY, owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title TEXT NOT NULL, description TEXT NOT NULL, category TEXT DEFAULT 'Other',
@@ -122,7 +122,7 @@ def optional_user(creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer
     uid = read_token(creds.credentials) if creds else None
     if not uid:
         return None
-    return db.execute("SELECT id,usn,name,college,department,year,skills,interests,role FROM users WHERE id=%s", (uid,)).fetchone()
+    return db.execute("SELECT id,usn,name,college,department,year,skills,interests,email,phone,role FROM users WHERE id=%s", (uid,)).fetchone()
 
 
 def current_user(u=Depends(optional_user)):
@@ -132,8 +132,8 @@ def current_user(u=Depends(optional_user)):
 
 
 def student_user(u=Depends(current_user)):
-    if not u["usn"]:
-        raise HTTPException(403, "Please add your USN and college in your profile first")
+    if not u["usn"] or not u["college"] or not (u["email"] or u["phone"]):
+        raise HTTPException(403, "Please add your USN, college and a phone number or email in your profile first")
     return u
 
 
@@ -185,12 +185,20 @@ def seed(db):
     log(db, "Demo Student joined “Study Buddy Matcher”")
 
 
+SAMPLE_CONTACTS = {"DEMO001": "demo@campuslaunch.example", "1XX21CS002": "aarav@campuslaunch.example",
+                   "1XX21EC010": "meera@campuslaunch.example", "1XX22IS005": "kiran@campuslaunch.example"}
+
+
 def init_db():
     with pool.connection() as db:
         db.execute(SCHEMA)
         db.execute("ALTER TABLE users ALTER COLUMN usn DROP NOT NULL")  # upgrade for existing databases
         if not db.execute("SELECT 1 FROM users LIMIT 1").fetchone():
             seed(db)  # sample data is only added to an empty database
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT DEFAULT ''")  # upgrade for existing databases
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT ''")
+        for usn, mail in SAMPLE_CONTACTS.items():  # sample accounts get a contact so the demo keeps working
+            db.execute("UPDATE users SET email=%s WHERE usn=%s AND COALESCE(email,'')='' AND COALESCE(phone,'')=''", (mail, usn))
         pw = os.getenv("ADMIN_PASSWORD")
         if pw:  # keeps the admin password in sync with the environment setting
             salt = secrets.token_hex(16)
@@ -222,6 +230,8 @@ class Reg(BaseModel):
     password: str = Field(min_length=6, max_length=100)
     department: str = Field("", max_length=100)
     year: int = Field(1, ge=1, le=6)
+    email: str = Field("", max_length=200)
+    phone: str = Field("", max_length=30)
 
 
 class Login(BaseModel):
@@ -232,6 +242,8 @@ class Login(BaseModel):
 
 class Profile(BaseModel):
     usn: Optional[str] = Field(None, min_length=3, max_length=30)
+    email: Optional[str] = Field(None, max_length=200)
+    phone: Optional[str] = Field(None, max_length=30)
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     college: Optional[str] = Field(None, min_length=1, max_length=200)
     department: Optional[str] = Field(None, max_length=100)
@@ -260,14 +272,27 @@ class RoleIn(BaseModel):
 
 
 # ---------- Auth & profile ----------
+def clean_contact(email, phone):
+    email = (email or "").strip().lower()
+    phone = re.sub(r"[\s\-()]", "", phone or "")
+    if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        raise HTTPException(400, "Enter a valid email address")
+    if phone and not re.fullmatch(r"\+?\d{7,15}", phone):
+        raise HTTPException(400, "Enter a valid phone number (7 to 15 digits, may start with +)")
+    return email, phone
+
+
 @app.post("/register", status_code=201)
 def register(d: Reg, db=Depends(get_db)):
     usn = d.usn.strip().upper()
+    email, phone = clean_contact(d.email, d.phone)
+    if not (email or phone):
+        raise HTTPException(400, "Please add a phone number or email so project owners can reach you")
     if db.execute("SELECT 1 FROM users WHERE usn=%s", (usn,)).fetchone():
         raise HTTPException(409, "USN already registered")
     salt = secrets.token_hex(16)
-    uid = insert(db, "INSERT INTO users(usn,name,college,department,year,salt,pw) VALUES(%s,%s,%s,%s,%s,%s,%s)",
-                 (usn, d.name, d.college, d.department, d.year, salt, hash_pw(d.password, salt)))
+    uid = insert(db, "INSERT INTO users(usn,name,college,department,year,email,phone,salt,pw) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                 (usn, d.name, d.college, d.department, d.year, email, phone, salt, hash_pw(d.password, salt)))
     notify(db, uid, "Welcome to CampusLaunch! Complete your profile to get project recommendations.")
     log(db, f"{d.name} joined CampusLaunch")
     return {"token": make_token(uid, 1)}
@@ -298,13 +323,19 @@ def me(u=Depends(current_user), db=Depends(get_db)):
 @app.put("/me")
 def update_me(d: Profile, u=Depends(current_user), db=Depends(get_db)):
     data = d.model_dump(exclude_none=True)
-    if "usn" in data:
-        if u["usn"]:
-            data.pop("usn")  # a USN can't be changed once it is set
+    if "usn" in data:  # students can correct their USN, as long as nobody else has it
+        new = data["usn"].strip().upper()
+        if new == u["usn"]:
+            data.pop("usn")
+        elif db.execute("SELECT 1 FROM users WHERE usn=%s AND id!=%s", (new, u["id"])).fetchone():
+            raise HTTPException(409, "That USN is already registered")
         else:
-            data["usn"] = data["usn"].strip().upper()
-            if db.execute("SELECT 1 FROM users WHERE usn=%s", (data["usn"],)).fetchone():
-                raise HTTPException(409, "USN already registered")
+            data["usn"] = new
+    if "email" in data or "phone" in data:
+        email, phone = clean_contact(data.get("email", u["email"]), data.get("phone", u["phone"]))
+        if not (email or phone):
+            raise HTTPException(400, "Keep at least one contact detail (phone or email)")
+        data["email"], data["phone"] = email, phone
     if data:
         db.execute(f"UPDATE users SET {','.join(k + '=%s' for k in data)} WHERE id=%s", (*data.values(), u["id"]))
     return {"ok": True}
@@ -348,9 +379,12 @@ def get_project(db, pid):
 @app.get("/projects/{pid}")
 def project_detail(pid: int, u=Depends(optional_user), db=Depends(get_db)):
     p = get_project(db, pid)
-    p["members"] = q(db, "SELECT u.id,u.name,u.department,u.skills,m.role FROM members m JOIN users u ON u.id=m.user_id WHERE m.project_id=%s ORDER BY m.joined_at, u.id", (pid,))
+    p["members"] = q(db, "SELECT u.id,u.name,u.department,u.skills,u.email,u.phone,m.role FROM members m JOIN users u ON u.id=m.user_id WHERE m.project_id=%s ORDER BY m.joined_at, u.id", (pid,))
     p["owner_name"] = next((m["name"] for m in p["members"] if m["id"] == p["owner_id"]), "")
     p["is_member"] = bool(u) and any(m["id"] == u["id"] for m in p["members"])
+    if not (p["is_member"] or (u and u["role"] == "admin")):  # contact details are only shown to teammates
+        for m in p["members"]:
+            m.pop("email", None); m.pop("phone", None)
     r = db.execute("SELECT status FROM requests WHERE project_id=%s AND user_id=%s", (pid, u["id"])).fetchone() if u else None
     p["my_request"] = r["status"] if r else None
     return p
@@ -467,7 +501,7 @@ def dashboard(u=Depends(current_user), db=Depends(get_db)):
     return {
         "mine": q(db, "SELECT id,title,status,category FROM projects WHERE owner_id=%s ORDER BY id DESC", (uid,)),
         "joined": q(db, "SELECT p.id,p.title,p.status,p.category,m.role FROM members m JOIN projects p ON p.id=m.project_id WHERE m.user_id=%s AND p.owner_id!=%s ORDER BY p.id DESC", (uid, uid)),
-        "incoming": q(db, "SELECT r.id,p.id AS project_id,p.title,us.name,us.skills FROM requests r JOIN projects p ON p.id=r.project_id JOIN users us ON us.id=r.user_id WHERE p.owner_id=%s AND r.status='pending' ORDER BY r.id DESC", (uid,)),
+        "incoming": q(db, "SELECT r.id,p.id AS project_id,p.title,us.name,us.skills,us.email,us.phone FROM requests r JOIN projects p ON p.id=r.project_id JOIN users us ON us.id=r.user_id WHERE p.owner_id=%s AND r.status='pending' ORDER BY r.id DESC", (uid,)),
         "sent": q(db, "SELECT r.status,p.id AS project_id,p.title FROM requests r JOIN projects p ON p.id=r.project_id WHERE r.user_id=%s AND r.status!='accepted' ORDER BY r.id DESC", (uid,)),
         "notifications": q(db, "SELECT id,text,is_read,created_at FROM notifications WHERE user_id=%s ORDER BY id DESC LIMIT 10", (uid,)),
         "recommended": sorted(cand, key=lambda c: -c["score"])[:5],
@@ -492,7 +526,7 @@ def stats(a=Depends(admin_user), db=Depends(get_db)):
 
 @app.get("/admin/users")
 def admin_users(a=Depends(admin_user), db=Depends(get_db)):
-    return q(db, "SELECT id,usn,name,college,department,year,role,created_at, "
+    return q(db, "SELECT id,usn,name,college,department,year,email,phone,role,created_at, "
                  "(SELECT COUNT(*) FROM projects p WHERE p.owner_id=users.id) AS projects FROM users ORDER BY id")
 
 
@@ -591,6 +625,8 @@ def oauth_callback(provider: str, request: Request, code: str = "", state: str =
             info = h.get(cfg["info"], headers={"Authorization": f"Bearer {at}", "Accept": "application/json"}).json() if at else {}
         pid = str(info.get("sub") or info.get("id") or "")
         name = (info.get("name") or info.get("login") or "New Student")[:100]
+        email = str(info.get("email") or "")[:200]
+        email = email.lower() if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email) else ""
         if not pid:
             raise ValueError("no id")
     except Exception:
@@ -607,7 +643,7 @@ def oauth_callback(provider: str, request: Request, code: str = "", state: str =
         new = row is None
         if new:  # first social login: create the account, USN and college are added afterwards
             salt = secrets.token_hex(16)
-            uid = insert(db, "INSERT INTO users(name,college,salt,pw) VALUES(%s,'',%s,%s)", (name, salt, hash_pw(secrets.token_urlsafe(32), salt)))
+            uid = insert(db, "INSERT INTO users(name,college,email,salt,pw) VALUES(%s,'',%s,%s,%s)", (name, email, salt, hash_pw(secrets.token_urlsafe(32), salt)))
             db.execute("INSERT INTO social_accounts(user_id,provider,provider_id) VALUES(%s,%s,%s)", (uid, provider, pid))
             notify(db, uid, "Welcome to CampusLaunch! Add your USN and college to start joining projects.")
             log(db, f"{name} joined CampusLaunch")
