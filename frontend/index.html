@@ -69,6 +69,8 @@ dialog::backdrop{background:rgba(20,33,61,.5);backdrop-filter:blur(3px)}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1f6f43;color:#fff;padding:10px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%;z-index:30}#toast.show{opacity:1}#toast.bad{background:#b83232}
 .soc{display:grid;gap:8px}.soc a{display:flex;justify-content:center;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text);font-weight:600}.soc a:hover{border-color:var(--green)}
 .note{background:#fff7e0;border:1px solid #f0d98a;border-radius:10px;padding:10px 12px;margin:12px 0;font-size:14px}
+.mlogo{display:none}.mlogo b{color:var(--green)}
+@media(max-width:800px){.mlogo{display:flex;margin-bottom:22px}}
 </style>
 </head>
 <body>
@@ -79,7 +81,7 @@ dialog::backdrop{background:rgba(20,33,61,.5);backdrop-filter:blur(3px)}
     <div><div class="eyebrow">Build together</div><p>Find your people, shape a bold idea, and ship projects that make campus better.</p></div>
     <div class="avs"><span>AM</span><span>KS</span><span>IR</span>&nbsp;&nbsp;&nbsp;&nbsp;Join 1,200+ student builders</div>
   </div>
-  <div class="right"><form class="form" id="authForm"></form></div>
+  <div class="right"><form class="form" id="authForm"><div class="logo mlogo"><i>c</i>Campus<b>Launch</b></div><p class="muted">Connecting to the server… after a quiet spell it can take up to a minute to wake up. Please wait.</p></form></div>
 </div>
 
 <!-- ============ MAIN APP ============ -->
@@ -110,7 +112,7 @@ dialog::backdrop{background:rgba(20,33,61,.5);backdrop-filter:blur(3px)}
 
 <script>
 // Address of your backend. Change this after you deploy the backend online.
-const API = "https://campus-launch.onrender.com";
+const API = ["localhost", "127.0.0.1"].includes(location.hostname) ? "http://127.0.0.1:8000" : "https://campus-launch.onrender.com";
 const BRANCHES = ["Computer Science","Electronics","Information Science","Design","Mechanical"], STS = ["Planning","In Progress","Completed"],
   CATS = ["Web","Mobile","AI/ML","IoT","Hardware","Other"], SKILLS = ["frontend","hardware","ui design","machine learning","python","flutter","react","arduino"];
 let token = null, me = null, view = "explore", mode = "login", ALL = [], editId = null, openId = null, PROV = [];
@@ -132,7 +134,8 @@ async function api(path, method = "GET", body) {
   const h = {}; if (body) h["Content-Type"] = "application/json"; if (token) h.Authorization = "Bearer " + token;
   let r; try { r = await fetch(API + path, { method, headers: h, body: body ? JSON.stringify(body) : undefined }); }
   catch (e) { throw new Error("Can’t reach the backend. Is uvicorn running?"); }
-  const d = await r.json().catch(() => ({}));
+  let d = {}, bad = false; try { d = await r.json(); } catch (e) { bad = true; }
+  if (r.ok && bad) throw new Error("The address " + API + " answered, but it is not the CampusLaunch backend. Check the API address at the top of index.html.");
   if (!r.ok) { let m = d.detail; if (Array.isArray(m)) m = m.map(x => (x.loc || []).slice(-1) + ": " + x.msg).join("; "); const err = new Error(m || "Something went wrong"); err.status = r.status; throw err; }
   return d;
 }
@@ -152,7 +155,7 @@ async function loadMe() {
 }
 function renderAuth() {
   const su = mode === "signup";
-  $("#authForm").innerHTML = `<div class="eyebrow">${su ? "Join us" : "Welcome back"}</div><h1>${su ? "Create your account" : "Sign in to CampusLaunch"}</h1>
+  $("#authForm").innerHTML = `<div class="logo mlogo"><i>c</i>Campus<b>Launch</b></div><div class="eyebrow">${su ? "Join us" : "Welcome back"}</div><h1>${su ? "Create your account" : "Sign in to CampusLaunch"}</h1>
     <p class="muted">The Project Collaboration Hub for Engineering Students</p>
     ${su ? `<label>Full name</label><input name="name" required><label>College</label><input name="college" required>
       <div class="two"><div><label>Department</label><input name="department" placeholder="Computer Science"></div><div><label>Year (1-6)</label><input name="year" type="number" min="1" max="6" value="1"></div></div>
@@ -339,7 +342,7 @@ $("#sort").onchange = renderList; $("#side").addEventListener("change", renderLi
   const h = new URLSearchParams(location.hash.slice(1));
   if (h.get("token")) saveToken(h.get("token"), true);
   history.replaceState(null, "", location.pathname + location.search);
-  try { PROV = (await api("/auth/providers")).enabled; } catch (e) {}
+  try { PROV = (await api("/auth/providers")).enabled || []; } catch (e) {}
   await loadMe();
   if (!me && loadMe.err) toast("Could not load your profile: " + loadMe.err, true);
   if (h.get("error")) toast(h.get("error"), true);
