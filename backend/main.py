@@ -122,7 +122,8 @@ def optional_user(creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer
     uid = read_token(creds.credentials) if creds else None
     if not uid:
         return None
-    return db.execute("SELECT id,usn,name,college,department,year,skills,interests,email,phone,role FROM users WHERE id=%s", (uid,)).fetchone()
+    return db.execute("SELECT id,usn,name,college,department,year,skills,interests,email,phone,role, "
+                      "(SELECT COUNT(*) FROM notifications n WHERE n.user_id=users.id AND n.is_read=0) AS unread FROM users WHERE id=%s", (uid,)).fetchone()
 
 
 def current_user(u=Depends(optional_user)):
@@ -192,7 +193,11 @@ SAMPLE_CONTACTS = {"DEMO001": "demo@campuslaunch.example", "1XX21CS002": "aarav@
 def init_db():
     with pool.connection() as db:
         db.execute(SCHEMA)
+        for t in ("users", "projects", "members", "requests", "notifications", "activity", "social_accounts"):
+            db.execute(f"ALTER TABLE {t} ENABLE ROW LEVEL SECURITY")  # keeps Supabase's public web API away from these tables
         db.execute("ALTER TABLE users ALTER COLUMN usn DROP NOT NULL")  # upgrade for existing databases
+        for col in ("projects(owner_id)", "members(user_id)", "requests(user_id)", "requests(project_id)", "notifications(user_id)", "social_accounts(user_id)"):
+            db.execute(f"CREATE INDEX IF NOT EXISTS idx_{col.replace('(', '_').replace(')', '')} ON {col}")  # keeps lookups fast as data grows
         if not db.execute("SELECT 1 FROM users LIMIT 1").fetchone():
             seed(db)  # sample data is only added to an empty database
         db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT DEFAULT ''")  # upgrade for existing databases
@@ -217,7 +222,7 @@ app = FastAPI(title="CampusLaunch API", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=ORIGINS, allow_methods=["*"], allow_headers=["*"])
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])  # monitors often check with HEAD; this keeps them from seeing an error
 def health():
     return {"status": "ok"}
 
@@ -316,7 +321,6 @@ def demo(db=Depends(get_db)):
 
 @app.get("/me")
 def me(u=Depends(current_user), db=Depends(get_db)):
-    u["unread"] = db.execute("SELECT COUNT(*) AS c FROM notifications WHERE user_id=%s AND is_read=0", (u["id"],)).fetchone()["c"]
     return u
 
 
@@ -490,23 +494,35 @@ def set_role(pid: int, uid: int, d: RoleIn, u=Depends(current_user), db=Depends(
 
 
 # ---------- Dashboard & notifications ----------
+def _rows(inner):
+    return f"(SELECT COALESCE(json_agg(x), '[]'::json) FROM ({inner}) x)"
+
+
+DASHBOARD_SQL = "SELECT " + ", ".join([
+    _rows("SELECT id,title,status,category FROM projects WHERE owner_id=%(u)s ORDER BY id DESC") + " AS mine",
+    _rows("SELECT p.id,p.title,p.status,p.category,m.role FROM members m JOIN projects p ON p.id=m.project_id "
+          "WHERE m.user_id=%(u)s AND p.owner_id!=%(u)s ORDER BY p.id DESC") + " AS joined",
+    _rows("SELECT r.id,p.id AS project_id,p.title,us.name,us.skills,us.email,us.phone FROM requests r "
+          "JOIN projects p ON p.id=r.project_id JOIN users us ON us.id=r.user_id "
+          "WHERE p.owner_id=%(u)s AND r.status='pending' ORDER BY r.id DESC") + " AS incoming",
+    _rows("SELECT r.status,p.id AS project_id,p.title FROM requests r JOIN projects p ON p.id=r.project_id "
+          "WHERE r.user_id=%(u)s AND r.status!='accepted' ORDER BY r.id DESC") + " AS sent",
+    _rows("SELECT id,text,is_read,created_at FROM notifications WHERE user_id=%(u)s ORDER BY id DESC LIMIT 10") + " AS notifications",
+    _rows("SELECT text,created_at FROM activity ORDER BY id DESC LIMIT 8") + " AS activity",
+    _rows("SELECT id,title,category,technologies,required_skills,status FROM projects WHERE owner_id!=%(u)s "
+          "AND id NOT IN (SELECT project_id FROM members WHERE user_id=%(u)s) ORDER BY id DESC") + " AS cand",
+])
+
+
 @app.get("/dashboard")
 def dashboard(u=Depends(current_user), db=Depends(get_db)):
-    uid = u["id"]
+    d = db.execute(DASHBOARD_SQL, {"u": u["id"]}).fetchone()  # everything in a single trip to the database
     wanted = tokens(u["skills"]) | tokens(u["interests"])
-    cand = q(db, "SELECT id,title,category,technologies,required_skills,status FROM projects "
-                 "WHERE owner_id!=%s AND id NOT IN (SELECT project_id FROM members WHERE user_id=%s) ORDER BY id DESC", (uid, uid))
+    cand = d.pop("cand")
     for c in cand:
         c["score"] = len(wanted & (tokens(c["required_skills"]) | tokens(c["technologies"]) | tokens(c["category"])))
-    return {
-        "mine": q(db, "SELECT id,title,status,category FROM projects WHERE owner_id=%s ORDER BY id DESC", (uid,)),
-        "joined": q(db, "SELECT p.id,p.title,p.status,p.category,m.role FROM members m JOIN projects p ON p.id=m.project_id WHERE m.user_id=%s AND p.owner_id!=%s ORDER BY p.id DESC", (uid, uid)),
-        "incoming": q(db, "SELECT r.id,p.id AS project_id,p.title,us.name,us.skills,us.email,us.phone FROM requests r JOIN projects p ON p.id=r.project_id JOIN users us ON us.id=r.user_id WHERE p.owner_id=%s AND r.status='pending' ORDER BY r.id DESC", (uid,)),
-        "sent": q(db, "SELECT r.status,p.id AS project_id,p.title FROM requests r JOIN projects p ON p.id=r.project_id WHERE r.user_id=%s AND r.status!='accepted' ORDER BY r.id DESC", (uid,)),
-        "notifications": q(db, "SELECT id,text,is_read,created_at FROM notifications WHERE user_id=%s ORDER BY id DESC LIMIT 10", (uid,)),
-        "recommended": sorted(cand, key=lambda c: -c["score"])[:5],
-        "activity": q(db, "SELECT text,created_at FROM activity ORDER BY id DESC LIMIT 8"),
-    }
+    d["recommended"] = sorted(cand, key=lambda c: -c["score"])[:5]
+    return d
 
 
 @app.post("/notifications/read")
