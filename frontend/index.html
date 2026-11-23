@@ -146,7 +146,7 @@ function saveToken(t, remember) {
 
 // ----- Login gate: nobody sees the app until they sign in -----
 async function loadMe() {
-  me = null; loadMe.err = ""; if (token) { try { me = await api("/me"); } catch (e) { loadMe.err = e.message; if (e.status === 401) saveToken(null); } }
+  let m = null; loadMe.err = ""; if (token) { try { m = await api("/me"); } catch (e) { loadMe.err = e.message; if (e.status === 401) saveToken(null); } } me = m;
   $("#auth").hidden = !!me; $("#app").hidden = !me;
   if (!me) return renderAuth();
   $("#nav").innerHTML = [["explore","Explore"],["dashboard","Dashboard"],["profile","Profile"],...(me.role === "admin" ? [["admin","Admin"]] : [])]
@@ -181,17 +181,22 @@ async function show(v) {
   if (me && incomplete() && v !== "profile") { v = "profile"; toast("Please add your USN, college and a phone number or email to continue", true); }
   view = v; $("#explore").hidden = v !== "explore"; $("#view").hidden = v === "explore";
   document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
+  { const vw = $("#view"); if (v !== "explore" && vw.dataset.v !== v) vw.innerHTML = `<p class="muted">Loading…</p>`; vw.dataset.v = v; }
   try { if (v === "explore") await loadProjects(); else if (v === "dashboard") await rDash(); else if (v === "profile") rProfile(); else if (v === "admin") await rAdmin(); }
   catch (e) { toast(e.message, true); }
 }
-async function refresh() { await loadMe(); if (me) { await show(view); if (openId && $("#detDlg").open) openProject(openId).catch(() => $("#detDlg").close()); } }
+async function refresh() { await Promise.all([loadMe(), show(view), openId && $("#detDlg").open ? openProject(openId).catch(() => $("#detDlg").close()) : null]); }
 
 // ----- Explore: filters + project cards -----
 const grp = (t, k, items) => `<details><summary>${t}</summary>${items.map(x => `<label class="ck"><input type="checkbox" data-f="${k}" value="${esc(x)}"> ${esc(x)}</label>`).join("")}</details>`;
 $("#side").innerHTML = `<div class="h"><span>⚲ Filters</span><a data-act="clear">Clear all</a></div>${grp("Branch / Course", "branch", BRANCHES)}${grp("Project Status", "status", STS)}${grp("Skills Needed", "skill", SKILLS)}`;
 const checked = k => [...document.querySelectorAll(`[data-f="${k}"]:checked`)].map(i => i.value);
 
-async function loadProjects() { ALL = await api("/projects?q=" + encodeURIComponent($("#gs").value.trim())); renderList(); }
+async function loadProjects() {
+  const q = $("#gs").value.trim();
+  if (!q && ALL.length) renderList(); else if (!ALL.length) $("#list").innerHTML = `<p class="muted">Loading projects…</p>`;  // show what we have while fresh data loads
+  ALL = await api("/projects?q=" + encodeURIComponent(q)); renderList();
+}
 function renderList() {
   const br = checked("branch"), st = checked("status"), sk = checked("skill"), so = $("#sort").value;
   const L = ALL.filter(p => (!br.length || br.includes(p.owner_department)) && (!st.length || st.includes(p.status)) &&
@@ -327,13 +332,14 @@ document.addEventListener("click", async e => {
   const v = t.closest("[data-view]"); if (v) return show(v.dataset.view);
   const a = t.closest("[data-act]"); if (!a) return;
   e.preventDefault();
+  const busy = a.tagName === "BUTTON" && !a.disabled; if (busy) a.disabled = true;  // instant feedback, no double clicks
   try {
     if (a.dataset.act === "role") {
       const role = prompt("Role or responsibility for this member (e.g. Frontend, Designer):", a.dataset.role); if (!role) return;
       await api(`/projects/${a.dataset.id}/members/${a.dataset.uid}/role`, "PUT", { role }); toast("Role updated");
     } else await actions[a.dataset.act](a.dataset.id);
     if (!NOREFRESH.includes(a.dataset.act)) refresh();
-  } catch (err) { toast(err.message, true); }
+  } catch (err) { toast(err.message, true); } finally { if (busy) a.disabled = false; }
 });
 $("#postBtn").onclick = () => openForm();
 let timer; $("#gs").oninput = () => { clearTimeout(timer); timer = setTimeout(() => view === "explore" ? loadProjects() : show("explore"), 300); };
@@ -342,8 +348,8 @@ $("#sort").onchange = renderList; $("#side").addEventListener("change", renderLi
   const h = new URLSearchParams(location.hash.slice(1));
   if (h.get("token")) saveToken(h.get("token"), true);
   history.replaceState(null, "", location.pathname + location.search);
-  try { PROV = (await api("/auth/providers")).enabled || []; } catch (e) {}
-  await loadMe();
+  const provP = api("/auth/providers").then(r => r.enabled || []).catch(() => []);
+  await loadMe(); PROV = await provP; if (!me) renderAuth();
   if (!me && loadMe.err) toast("Could not load your profile: " + loadMe.err, true);
   if (h.get("error")) toast(h.get("error"), true);
   if (h.get("linked")) toast(NAMES[h.get("linked")] + " connected");
