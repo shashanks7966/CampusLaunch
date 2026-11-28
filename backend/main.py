@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS activity(
   id SERIAL PRIMARY KEY, text TEXT NOT NULL, created_at {TS});
 CREATE TABLE IF NOT EXISTS social_accounts(
   id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  provider TEXT NOT NULL, provider_id TEXT NOT NULL, created_at {TS}, UNIQUE(provider, provider_id));
+  provider TEXT NOT NULL, provider_id TEXT NOT NULL, handle TEXT DEFAULT '', created_at {TS}, UNIQUE(provider, provider_id));
 """
 
 
@@ -202,6 +202,7 @@ def init_db():
             seed(db)  # sample data is only added to an empty database
         db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT DEFAULT ''")  # upgrade for existing databases
         db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT ''")
+        db.execute("ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS handle TEXT DEFAULT ''")
         for usn, mail in SAMPLE_CONTACTS.items():  # sample accounts get a contact so the demo keeps working
             db.execute("UPDATE users SET email=%s WHERE usn=%s AND COALESCE(email,'')='' AND COALESCE(phone,'')=''", (mail, usn))
         pw = os.getenv("ADMIN_PASSWORD")
@@ -493,6 +494,75 @@ def set_role(pid: int, uid: int, d: RoleIn, u=Depends(current_user), db=Depends(
     return {"ok": True}
 
 
+# ---------- Viewing a teammate's profile ----------
+# Allowed: yourself, an admin, or people on the same project (and, for the owner, people waiting to join it).
+CAN_VIEW_SQL = """SELECT 1 FROM projects p
+WHERE (p.owner_id=%(v)s OR EXISTS (SELECT 1 FROM members m WHERE m.project_id=p.id AND m.user_id=%(v)s))
+  AND (EXISTS (SELECT 1 FROM members m WHERE m.project_id=p.id AND m.user_id=%(t)s)
+       OR (p.owner_id=%(v)s AND EXISTS (SELECT 1 FROM requests r WHERE r.project_id=p.id AND r.user_id=%(t)s AND r.status='pending')))
+LIMIT 1"""
+_repo_cache = {}  # GitHub username -> (time, repositories); avoids asking GitHub too often
+
+
+def gh_headers():
+    h = {"Accept": "application/vnd.github+json"}
+    if os.getenv("GITHUB_TOKEN"):  # optional: raises GitHub's request limit a lot
+        h["Authorization"] = "Bearer " + os.getenv("GITHUB_TOKEN")
+    return h
+
+
+def gh_get(url, **kw):
+    r = httpx.get(url, headers=gh_headers(), timeout=6, **kw)
+    if r.status_code == 401 and os.getenv("GITHUB_TOKEN"):  # token expired or revoked: carry on without it
+        r = httpx.get(url, headers={"Accept": "application/vnd.github+json"}, timeout=6, **kw)
+    return r
+
+
+def github_handle(db, uid):
+    r = db.execute("SELECT provider_id, handle FROM social_accounts WHERE user_id=%s AND provider='github'", (uid,)).fetchone()
+    if not r:
+        return ""
+    if not r["handle"]:  # linked before usernames were saved: look it up once
+        try:
+            j = gh_get(f"https://api.github.com/user/{int(r['provider_id'])}").json()
+            r["handle"] = str(j.get("login") or "")[:100]
+            if r["handle"]:
+                db.execute("UPDATE social_accounts SET handle=%s WHERE user_id=%s AND provider='github'", (r["handle"], uid))
+        except Exception:
+            pass
+    return r["handle"] if re.fullmatch(r"[A-Za-z0-9-]{1,39}", r["handle"] or "") else ""
+
+
+def github_repos(handle):
+    hit = _repo_cache.get(handle)
+    if hit and time.time() - hit[0] < 600:
+        return hit[1]
+    try:
+        r = gh_get(f"https://api.github.com/users/{handle}/repos", params={"sort": "pushed", "per_page": 30, "type": "owner"})
+        if r.status_code != 200:
+            return None
+        repos = [{"name": x["name"], "url": x["html_url"], "description": (x.get("description") or "")[:200], "language": x.get("language") or "",
+                  "stars": x.get("stargazers_count", 0), "updated": (x.get("pushed_at") or "")[:10]} for x in r.json() if not x.get("fork")][:8]
+    except Exception:
+        return None
+    _repo_cache[handle] = (time.time(), repos)
+    return repos
+
+
+@app.get("/users/{uid}/profile")
+def user_profile(uid: int, u=Depends(current_user), db=Depends(get_db)):
+    if uid != u["id"] and u["role"] != "admin" and not db.execute(CAN_VIEW_SQL, {"v": u["id"], "t": uid}).fetchone():
+        raise HTTPException(403, "You can only view people on your projects, or people asking to join them")
+    p = db.execute("SELECT id,usn,name,college,department,year,skills,interests,email,phone FROM users WHERE id=%s", (uid,)).fetchone()
+    if not p:
+        raise HTTPException(404, "Student not found")
+    p["projects"] = q(db, "SELECT p.id,p.title,p.status,m.role FROM members m JOIN projects p ON p.id=m.project_id WHERE m.user_id=%s ORDER BY p.id DESC LIMIT 10", (uid,))
+    h = github_handle(db, uid)
+    p["github"] = {"handle": h, "url": "https://github.com/" + h} if h else None
+    p["repos"] = github_repos(h) if h else None  # None means GitHub could not be reached
+    return p
+
+
 # ---------- Dashboard & notifications ----------
 def _rows(inner):
     return f"(SELECT COALESCE(json_agg(x), '[]'::json) FROM ({inner}) x)"
@@ -502,7 +572,7 @@ DASHBOARD_SQL = "SELECT " + ", ".join([
     _rows("SELECT id,title,status,category FROM projects WHERE owner_id=%(u)s ORDER BY id DESC") + " AS mine",
     _rows("SELECT p.id,p.title,p.status,p.category,m.role FROM members m JOIN projects p ON p.id=m.project_id "
           "WHERE m.user_id=%(u)s AND p.owner_id!=%(u)s ORDER BY p.id DESC") + " AS joined",
-    _rows("SELECT r.id,p.id AS project_id,p.title,us.name,us.skills,us.email,us.phone FROM requests r "
+    _rows("SELECT r.id,p.id AS project_id,p.title,us.id AS user_id,us.name,us.skills,us.email,us.phone FROM requests r "
           "JOIN projects p ON p.id=r.project_id JOIN users us ON us.id=r.user_id "
           "WHERE p.owner_id=%(u)s AND r.status='pending' ORDER BY r.id DESC") + " AS incoming",
     _rows("SELECT r.status,p.id AS project_id,p.title FROM requests r JOIN projects p ON p.id=r.project_id "
@@ -641,6 +711,7 @@ def oauth_callback(provider: str, request: Request, code: str = "", state: str =
             info = h.get(cfg["info"], headers={"Authorization": f"Bearer {at}", "Accept": "application/json"}).json() if at else {}
         pid = str(info.get("sub") or info.get("id") or "")
         name = (info.get("name") or info.get("login") or "New Student")[:100]
+        handle = str(info.get("login") or "")[:100] if provider == "github" else ""  # GitHub username
         email = str(info.get("email") or "")[:200]
         email = email.lower() if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email) else ""
         if not pid:
@@ -648,19 +719,21 @@ def oauth_callback(provider: str, request: Request, code: str = "", state: str =
     except Exception:
         return back("error=" + quote(f"Could not complete sign-in with {provider.title()}."))
     row = db.execute("SELECT user_id FROM social_accounts WHERE provider=%s AND provider_id=%s", (provider, pid)).fetchone()
+    if row and handle:  # keep the stored username fresh if the student renamed it
+        db.execute("UPDATE social_accounts SET handle=%s WHERE provider=%s AND provider_id=%s", (handle, provider, pid))
     link_uid = st.get("l", 0)
     if link_uid:  # connecting an extra login method to an existing account
         if row and row["user_id"] != link_uid:
             return back("error=" + quote("That account is already connected to another student."))
         if not row:
-            db.execute("INSERT INTO social_accounts(user_id,provider,provider_id) VALUES(%s,%s,%s)", (link_uid, provider, pid))
+            db.execute("INSERT INTO social_accounts(user_id,provider,provider_id,handle) VALUES(%s,%s,%s,%s)", (link_uid, provider, pid, handle))
         resp = back("linked=" + provider)
     else:
         new = row is None
         if new:  # first social login: create the account, USN and college are added afterwards
             salt = secrets.token_hex(16)
             uid = insert(db, "INSERT INTO users(name,college,email,salt,pw) VALUES(%s,'',%s,%s,%s)", (name, email, salt, hash_pw(secrets.token_urlsafe(32), salt)))
-            db.execute("INSERT INTO social_accounts(user_id,provider,provider_id) VALUES(%s,%s,%s)", (uid, provider, pid))
+            db.execute("INSERT INTO social_accounts(user_id,provider,provider_id,handle) VALUES(%s,%s,%s,%s)", (uid, provider, pid, handle))
             notify(db, uid, "Welcome to CampusLaunch! Add your USN and college to start joining projects.")
             log(db, f"{name} joined CampusLaunch")
         else:
