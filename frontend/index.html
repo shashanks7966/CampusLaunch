@@ -116,6 +116,7 @@ dialog::backdrop{background:rgba(20,33,61,.5);backdrop-filter:blur(3px)}
 
 <dialog id="projDlg"><button class="x" data-close>✕</button><form id="projForm"></form></dialog>
 <dialog id="detDlg"><button class="x" data-close>✕</button><div id="detBody"></div></dialog>
+<dialog id="userDlg"><button class="x" data-close>✕</button><div id="userBody"></div></dialog>
 <div id="toast"></div>
 
 <script>
@@ -237,9 +238,26 @@ async function openProject(id) {
     <b>Roles needed</b><div>${split(p.roles_needed).map(r => `<span class="rc">${esc(r)}</span>`).join("") || "Open to all"}</div>
     <b style="display:block;margin-top:12px">Skills wanted</b><div>${split(p.required_skills).map(r => `<span class="rc">${esc(r)}</span>`).join("") || "—"}</div>
     <h2>Team (${p.members.length}/${p.team_size})</h2><ul class="list">${p.members.map(m => `<li><span>${esc(m.name)} <span class="muted">· ${esc(m.department)}</span>${m.email || m.phone ? `<br><span style="font-size:13px">${contact(m)}</span>` : ""}</span>
-      <span><span class="badge">${esc(m.role)}</span> ${owner ? `<button class="btn ghost sm" data-act="role" data-id="${id}" data-uid="${m.id}" data-role="${esc(m.role)}">Set role</button>` : ""}</span></li>`).join("")}</ul>
+      <span><span class="badge">${esc(m.role)}</span> ${p.is_member || admin ? `<button class="btn ghost sm" data-act="profile" data-id="${m.id}">Profile</button>` : ""} ${owner ? `<button class="btn ghost sm" data-act="role" data-id="${id}" data-uid="${m.id}" data-role="${esc(m.role)}">Set role</button>` : ""}</span></li>`).join("")}</ul>
     <div class="row">${act}</div>`;
   if (!$("#detDlg").open) $("#detDlg").showModal();
+}
+
+// ----- A teammate's profile (skills, contact, GitHub projects) -----
+async function openUser(uid) {
+  const p = await api("/users/" + uid + "/profile");
+  const list = a => split(a).map(x => `<span class="rc">${esc(x)}</span>`).join("") || `<span class="muted">Not added</span>`;
+  const repos = p.github ? (p.repos === null ? `<li class="muted">Couldn’t load repositories right now. <a href="${esc(p.github.url)}" target="_blank" rel="noopener">Open the GitHub profile</a></li>`
+    : p.repos.length ? p.repos.map(r => `<li><span><a href="${esc(r.url)}" target="_blank" rel="noopener"><b>${esc(r.name)}</b></a> <span class="muted">${esc(r.language)}${r.stars ? " · ★" + r.stars : ""}${r.updated ? " · updated " + esc(r.updated) : ""}</span>
+        ${r.description ? `<br><span class="muted" style="font-size:13px">${esc(r.description)}</span>` : ""}</span></li>`).join("") : `<li class="muted">No public repositories yet</li>`) : "";
+  $("#userBody").innerHTML = `<div style="display:flex;gap:14px;align-items:center"><div class="av" style="width:56px;height:56px;font-size:18px;cursor:default">${ini(p.name)}</div>
+    <div><h2 style="margin:0">${esc(p.name)}</h2><div class="muted">${esc(p.usn || "No USN yet")} · ${esc(p.department || "—")} · ${ord(p.year)} Year</div><div class="muted">${esc(p.college)}</div></div></div>
+    <h4>Contact</h4><div>${contact(p)}</div><h4>Skills</h4><div>${list(p.skills)}</div><h4>Interests</h4><div>${list(p.interests)}</div>
+    <h4>GitHub${p.github ? ` · <a href="${esc(p.github.url)}" target="_blank" rel="noopener">@${esc(p.github.handle)}</a>` : ""}</h4>
+    ${p.github ? `<ul class="list">${repos}</ul>` : `<div class="muted">No GitHub account connected</div>`}
+    <h4>On CampusLaunch</h4><ul class="list">${p.projects.map(x => `<li data-act="open" data-id="${x.id}"><span>${esc(x.title)}</span><span class="badge">${esc(x.role)} · ${esc(x.status)}</span></li>`).join("") || `<li class="muted">No projects yet</li>`}</ul>
+    <div class="row"><button class="btn ghost" data-close>Close</button></div>`;
+  if (!$("#userDlg").open) $("#userDlg").showModal();
 }
 
 // ----- Post an idea (2 steps) -----
@@ -276,7 +294,7 @@ async function rDash() {
     <div class="stat"><b>${d.incoming.length}</b>Pending requests</div><div class="stat"><b>${d.notifications.filter(n => !n.is_read).length}</b>New notifications</div></div>
     <div class="cols"><div>
       <h2>Requests to join your projects</h2><ul class="list">${d.incoming.map(r => `<li><span><b>${esc(r.name)}</b> → ${esc(r.title)}<br><span class="muted">${esc(r.skills || "No skills listed")}</span><br>${contact(r)}</span>
-        <span class="acts"><button class="btn ok sm" data-act="acc" data-id="${r.id}">Accept</button><button class="btn danger sm" data-act="rej" data-id="${r.id}">Reject</button></span></li>`).join("") || none("No pending requests")}</ul>
+        <span class="acts"><button class="btn ghost sm" data-act="profile" data-id="${r.user_id}">Profile</button><button class="btn ok sm" data-act="acc" data-id="${r.id}">Accept</button><button class="btn danger sm" data-act="rej" data-id="${r.id}">Reject</button></span></li>`).join("") || none("No pending requests")}</ul>
       <h2>My projects</h2><ul class="list">${d.mine.map(mini).join("") || none("You haven’t posted an idea yet")}</ul>
       <h2>Projects I joined</h2><ul class="list">${d.joined.map(mini).join("") || none("Not on any team yet")}</ul>
       <h2>My requests</h2><ul class="list">${d.sent.map(r => `<li data-act="open" data-id="${r.project_id}"><span>${esc(r.title)}</span><span class="badge">${esc(r.status)}</span></li>`).join("") || none("No requests sent")}</ul>
@@ -316,7 +334,7 @@ async function rAdmin() {
 
 // ----- Click handling -----
 const actions = {
-  open: id => openProject(id), edit: id => openForm(id),
+  open: id => openProject(id), profile: id => openUser(id), edit: id => openForm(id),
   logout: () => { saveToken(null); loadMe(); toast("Logged out"); },
   demo: async () => { const r = await api("/demo", "POST"); await afterLogin(r.token, false, "Demo Mode: signed in as Demo Student"); },
   forgot: () => toast("Password reset needs an email service. Ask an admin to reset it for now.", true),
@@ -333,7 +351,7 @@ const actions = {
   rej: async id => { await api(`/requests/${id}/reject`, "POST"); toast("Request rejected"); },
   deluser: async id => { if (!confirm("Delete this student and their projects?")) return; await api("/admin/users/" + id, "DELETE"); toast("Student deleted"); },
 };
-const NOREFRESH = ["connect", "open", "edit", "logout", "demo", "forgot", "switch", "eye", "clear", "next", "back"];
+const NOREFRESH = ["profile", "connect", "open", "edit", "logout", "demo", "forgot", "switch", "eye", "clear", "next", "back"];
 document.addEventListener("click", async e => {
   const t = e.target;
   if (t.closest("[data-close]")) return t.closest("dialog").close();
